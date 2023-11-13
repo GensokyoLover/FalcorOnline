@@ -45,6 +45,7 @@ using namespace Falcor;
 class AccumulatePass : public RenderPass
 {
 public:
+    using PyTorchTensor = pybind11::ndarray<pybind11::pytorch, float>;
     FALCOR_PLUGIN_CLASS(AccumulatePass, "AccumulatePass", "Temporal accumulation.");
 
     static ref<AccumulatePass> create(ref<Device> pDevice, const Properties& props) { return make_ref<AccumulatePass>(pDevice, props); }
@@ -60,7 +61,7 @@ public:
     virtual bool onMouseEvent(const MouseEvent& mouseEvent) override { return false; }
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
     virtual void onHotReload(HotReloadFlags reloaded) override;
-
+    virtual ref<Buffer> getBuffer() override;
     bool isEnabled() const { return mEnabled; }
     void setEnabled(bool enabled);
 
@@ -128,6 +129,8 @@ protected:
     ref<Texture> mpLastFrameSumLo;
     /// Last frame running sum (hi bits). Used in Double mode.
     ref<Texture> mpLastFrameSumHi;
+    ref<Buffer> mpEmissiveBuffer;
+
 
     // UI variables
 

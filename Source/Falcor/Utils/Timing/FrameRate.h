@@ -64,6 +64,7 @@ public:
     void newFrame()
     {
         mFrameCount++;
+
         mFrameTimes[mFrameCount % kFrameWindow] = mClock.tick().getRealTimeDelta();
         mClock.setTime(0).tick();
     }

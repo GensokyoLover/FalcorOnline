@@ -275,7 +275,7 @@ void AccumulatePass::accumulate(RenderContext* pRenderContext, const ref<Texture
     var["gLastFrameCorr"] = mpLastFrameCorr;
     var["gLastFrameSumLo"] = mpLastFrameSumLo;
     var["gLastFrameSumHi"] = mpLastFrameSumHi;
-
+    var["bufferUav"] = mpEmissiveBuffer;
     // Update the frame count.
     // The accumulation limit (mMaxFrameCount) has a special value of 0 (no limit) and is not supported in the SingleCompensated mode.
     if (mMaxFrameCount == 0 || mPrecisionMode == Precision::SingleCompensated || mFrameCount < mMaxFrameCount)
@@ -381,6 +381,7 @@ void AccumulatePass::prepareAccumulation(RenderContext* pRenderContext, uint32_t
 {
     // Allocate/resize/clear buffers for intermedate data. These are different depending on accumulation mode.
     // Buffers that are not used in the current mode are released.
+    int elementCount = width * height * 16;
     auto prepareBuffer = [&](ref<Texture>& pBuf, ResourceFormat format, bool bufUsed)
     {
         if (!bufUsed)
@@ -413,4 +414,23 @@ void AccumulatePass::prepareAccumulation(RenderContext* pRenderContext, uint32_t
     prepareBuffer(mpLastFrameCorr, ResourceFormat::RGBA32Float, mPrecisionMode == Precision::SingleCompensated);
     prepareBuffer(mpLastFrameSumLo, ResourceFormat::RGBA32Uint, mPrecisionMode == Precision::Double);
     prepareBuffer(mpLastFrameSumHi, ResourceFormat::RGBA32Uint, mPrecisionMode == Precision::Double);
+    //added by sht
+    if (mpEmissiveBuffer == nullptr || mpEmissiveBuffer->getElementCount() < elementCount)
+    {
+        // Create data buffer and CUDA shared buffer for async PyTorch access.
+        // Pytorch can access the data in the shared buffer while we generate new data into the data buffer.
+        // It is fine to recreate the buffers here without syncing as the caller is responsible for synchronization.
+        logInfo("Reallocating buffers to size {} bytes", elementCount);
+        mpEmissiveBuffer = mpDevice->createStructuredBuffer(
+            sizeof(float),
+            elementCount,
+            ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess,
+            MemoryType::DeviceLocal,
+            nullptr,
+            false
+        );
+    }
+}
+ref<Buffer> AccumulatePass::getBuffer() {
+    return mpEmissiveBuffer;
 }

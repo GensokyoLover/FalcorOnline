@@ -63,6 +63,7 @@ def main():
     print("Creating CUDA device")
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA not available")
+    print("yes")
     device = torch.device("cuda:0")
     print(device)
     torch.set_default_tensor_type(torch.cuda.FloatTensor)

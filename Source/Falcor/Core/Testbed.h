@@ -38,8 +38,13 @@
 #include "Utils/Timing/FrameRate.h"
 #include "Utils/UI/PythonUI.h"
 #include "Utils/Timing/Clock.h"
+#include "Utils/Scripting/ndarray.h"
 #include <memory>
 #include <filesystem>
+#if FALCOR_HAS_CUDA
+#include "Utils/CudaUtils.h"
+#endif
+
 
 namespace Falcor
 {
@@ -50,6 +55,7 @@ class ProfilerUI;
 /// This is the main Falcor application available through the Python API.
 class Testbed : public Object, private Window::ICallbacks
 {
+    using PyTorchTensor = pybind11::ndarray<pybind11::pytorch, float>;
     FALCOR_OBJECT(Testbed)
 public:
     struct Options
@@ -139,6 +145,7 @@ public:
     /// Returns true if the application should terminate.
     /// This is true if the window was closed or escape was pressed.
     bool shouldClose() const { return mShouldClose || (mpWindow && mpWindow->shouldClose()); }
+    PyTorchTensor getEmissive(const uint3 dim);
 
 private:
     // Implementation of Window::ICallbacks
@@ -171,10 +178,15 @@ private:
     ref<Texture> mpRenderTexture;
 
     std::unique_ptr<ImageProcessing> mpImageProcessing;
-
+#if FALCOR_HAS_CUDA
+    /// Shared CUDA/Falcor buffer for passing data from Falcor to PyTorch asynchronously.
+    InteropBuffer mSharedWriteBuffer;
+    /// Shared CUDA/Falcor buffer for passing data from PyTorch to Falcor asynchronously.
+    InteropBuffer mSharedReadBuffer;
+#endif
     FrameRate mFrameRate;
     Clock mClock;
-
+    int spp = 400;
     bool mShouldInterrupt{false};
     bool mShouldClose{false};
     struct

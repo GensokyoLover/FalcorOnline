@@ -322,11 +322,14 @@ public:
     cuda_utils::ExternalMemory* getCudaMemory() const;
 #endif
 
+public:
+    uint32_t mElementCount = 0;
+
 protected:
     Slang::ComPtr<gfx::IBufferResource> mGfxBufferResource;
 
     MemoryType mMemoryType;
-    uint32_t mElementCount = 0;
+
     ResourceFormat mFormat = ResourceFormat::Unknown;
     uint32_t mStructSize = 0;
     ref<Buffer> mpUAVCounter; // For structured-buffers

@@ -55,7 +55,7 @@ void Testbed::run()
 {
     mShouldInterrupt = false;
 
-    while ((!mpWindow || !mpWindow->shouldClose()) && !mShouldInterrupt)
+    while ((!mpWindow || !mpWindow->shouldClose()) && !mShouldInterrupt && mFrameRate.getFrameCount()<spp)
         frame();
 }
 
@@ -603,6 +603,45 @@ void Testbed::captureOutput(const std::filesystem::path& path, uint32_t outputIn
     }
 }
 
+
+// added by sht
+Testbed::PyTorchTensor Testbed::getEmissive(const uint3 dim)
+{
+#if FALCOR_HAS_CUDA
+    // We create a tensor and return to PyTorch. Falcor retains ownership of the memory.
+    // The Pytorch side is free to access the tensor up until the next call to this function.
+    // The caller is responsible for synchronizing the access or copying the data into its own memory.
+    using PytTorchTensor = Testbed::PyTorchTensor;
+    RenderContext* pRenderContext = mpDevice->getRenderContext();
+
+    const size_t elemCount = (size_t)dim.x * dim.y * dim.z;
+    const size_t byteSize = elemCount * sizeof(float);
+    FALCOR_CHECK(byteSize <= std::numeric_limits<uint32_t>::max(), "Buffer is too large.");
+
+    mSharedWriteBuffer = createInteropBuffer(mpDevice, byteSize);
+    ref<RenderPass> ap = mpRenderGraph->getPass("AccumulatePass");
+    ref<Buffer> emissiveBuffer = ap->getBuffer();
+    // Copy data to shared CUDA buffer.
+    pRenderContext->copyResource(mSharedWriteBuffer.buffer.get(), emissiveBuffer.get());
+
+    // Wait for copy to finish.
+    pRenderContext->waitForFalcor();
+
+    // Construct PyTorch tensor from CUDA buffer.
+
+    const pybind11::dlpack::dtype dtype = pybind11::dtype<float>();
+    const size_t shape[3] = {dim.x, dim.y, dim.z};
+    int32_t deviceType = pybind11::device::cuda::value;
+    int32_t deviceId = 0; // TODO: Consistent enumeration of GPU device IDs.
+    PyTorchTensor tensor = PyTorchTensor(
+        (void*)mSharedWriteBuffer.devicePtr, 3, shape, pybind11::handle() /* owner */, nullptr /* strides */, dtype, deviceType, deviceId
+    );
+    return tensor;
+#else
+    FALCOR_THROW("CUDA is not available.");
+#endif
+}
+
 FALCOR_SCRIPT_BINDING(Testbed)
 {
     FALCOR_SCRIPT_BINDING_DEPENDENCY(Device)
@@ -643,7 +682,7 @@ FALCOR_SCRIPT_BINDING(Testbed)
         "width"_a = 1920,
         "height"_a = 1080,
         "create_window"_a = false,
-        "device_type"_a = Device::Type::Default,
+        "device_type"_a = Device::Type::Vulkan,
         "gpu"_a = 0,
         "enable_debug_layers"_a = false,
         "enable_aftermath"_a = false,
@@ -663,6 +702,7 @@ FALCOR_SCRIPT_BINDING(Testbed)
     testbed.def("create_render_graph", &Testbed::createRenderGraph, "name"_a = "");
     testbed.def("load_render_graph", &Testbed::loadRenderGraph, "path"_a);
     testbed.def("capture_output", &Testbed::captureOutput, "path"_a, "output_index"_a = uint32_t(0)); // PYTHONDEPRECATED
+    testbed.def("getEmissive", &Testbed::getEmissive);
     testbed.def_property_readonly("profiler", [](Testbed* pTestbed) { return pTestbed->getDevice()->getProfiler(); });
 
     testbed.def_property_readonly("device", &Testbed::getDevice);
@@ -673,6 +713,7 @@ FALCOR_SCRIPT_BINDING(Testbed)
     testbed.def_property_readonly("screen", &Testbed::getScreen);
     testbed.def_property("show_ui", &Testbed::getShowUI, &Testbed::setShowUI);
     testbed.def_property_readonly("should_close", &Testbed::shouldClose);
+    
 }
 
 } // namespace Falcor

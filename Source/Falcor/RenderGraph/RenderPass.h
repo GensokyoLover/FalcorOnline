@@ -42,7 +42,10 @@
 #include <memory>
 #include <string_view>
 #include <string>
-
+#include "Utils/Scripting/ndarray.h"
+#if FALCOR_HAS_CUDA
+#include "Utils/CudaUtils.h"
+#endif
 namespace Falcor
 {
 /**
@@ -118,6 +121,7 @@ protected:
  */
 class FALCOR_API RenderPass : public Object
 {
+    using PyTorchTensor = pybind11::ndarray<pybind11::pytorch, float>;
     FALCOR_OBJECT(RenderPass)
 public:
     using PluginCreate = std::function<ref<RenderPass>(ref<Device> pDevice, const Properties& props)>;
@@ -238,6 +242,8 @@ public:
      * Get the current pass' name as defined in the graph
      */
     const std::string& getName() const { return mName; }
+
+    virtual ref<Buffer> getBuffer() { return nullptr; }
 
 protected:
     RenderPass(ref<Device> pDevice) : mpDevice(pDevice) {}

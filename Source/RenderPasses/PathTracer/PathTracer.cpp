@@ -1126,6 +1126,7 @@ bool PathTracer::beginFrame(RenderContext* pRenderContext, const RenderData& ren
     FALCOR_ASSERT(pOutputColor);
 
     // Set output frame dimension.
+    //printf("%d %d\n", pOutputColor->getWidth(), pOutputColor->getHeight());
     setFrameDim(uint2(pOutputColor->getWidth(), pOutputColor->getHeight()));
 
     // Validate all I/O sizes match the expected size.

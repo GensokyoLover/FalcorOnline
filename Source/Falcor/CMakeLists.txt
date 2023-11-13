@@ -25,6 +25,8 @@ target_sources(Falcor PRIVATE
     Core/SampleApp.h
     Core/Testbed.cpp
     Core/Testbed.h
+    Core/AovTest.cpp
+    Core/AovTest.h
     Core/Version.cpp
     Core/Version.h
     Core/Window.cpp
