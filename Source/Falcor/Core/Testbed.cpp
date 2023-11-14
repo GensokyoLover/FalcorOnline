@@ -68,9 +68,9 @@ inline pybind11::ndarray<pybind11::numpy> buffer_to_numpy(const Buffer& self)
     }
     else
     {
-        pybind11::size_t shape[1] = {bufferSize};
+        pybind11::size_t shape[1] = {bufferSize/4};
         return pybind11::ndarray<pybind11::numpy>(
-            cpuData, 1, shape, owner, nullptr, pybind11::dtype<uint8_t>(), pybind11::device::cpu::value
+            cpuData, 1, shape, owner, nullptr, pybind11::dtype<float>(), pybind11::device::cpu::value
         );
     }
 }

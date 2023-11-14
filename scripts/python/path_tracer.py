@@ -21,8 +21,8 @@ def main():
     scene_path = 'test_scenes/cornell_box.pyscene'
 
     # Create device and setup renderer.
-    device = falcor.Device(type=falcor.DeviceType.D3D12, gpu=0, enable_debug_layer=True)
-    testbed = falcor.Testbed(width=1920, height=1080, create_window=True, device=device)
+    device = falcor.Device(type=falcor.DeviceType.Vulkan, gpu=0, enable_debug_layer=True)
+    testbed = falcor.Testbed(width=1920, height=1080, create_window=False, device=device)
     setup_renderpass(testbed)
 
     # Load scene.
@@ -31,8 +31,12 @@ def main():
 
 
     testbed.run()
-    cc = testbed.getEmissive(falcor.uint3(1080, 1920, 16))
-    print(type((cc)))
+    emissive = testbed.getEmissive(falcor.uint3(1080, 1920, 16))
+    print(emissive.dtype)
 
+    emissive = emissive.reshape((1080, 1920, 16))
+    emissive = emissive[:, :, 0:3]
+    emissive = cv2.cvtColor(emissive, cv2.COLOR_BGR2RGB)
+    cv2.imwrite("fungraphics.exr", emissive)
 if __name__ == "__main__":
     main()
