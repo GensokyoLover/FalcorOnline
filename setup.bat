@@ -28,7 +28,8 @@ if not exist %~dp0\.vscode\ (
 )
 
 exit /b 0
-
+pause
 :error
 echo Failed to fetch dependencies!
+
 exit /b 1

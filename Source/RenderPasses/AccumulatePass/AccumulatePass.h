@@ -99,6 +99,7 @@ public:
             {OverflowMode::EMA, "EMA"},
         }
     );
+    void AccumulatePass::getEmissive(const uint3 dim);
 
 protected:
     void prepareAccumulation(RenderContext* pRenderContext, uint32_t width, uint32_t height);
@@ -138,7 +139,12 @@ protected:
     bool mEnabled = true;
     /// Reset accumulation automatically upon scene changes and refresh flags.
     bool mAutoReset = true;
-
+    #if FALCOR_HAS_CUDA
+    /// Shared CUDA/Falcor buffer for passing data from Falcor to PyTorch asynchronously.
+    InteropBuffer mSharedWriteBuffer;
+    /// Shared CUDA/Falcor buffer for passing data from PyTorch to Falcor asynchronously.
+    InteropBuffer mSharedReadBuffer;
+#endif
     Precision mPrecisionMode = Precision::Single;
     /// Maximum number of frames to accumulate before triggering overflow. 0 means infinite accumulation.
     uint32_t mMaxFrameCount = 0;

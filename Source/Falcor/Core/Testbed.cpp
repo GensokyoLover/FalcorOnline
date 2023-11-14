@@ -29,6 +29,7 @@
 #include "Core/ObjectPython.h"
 #include "Core/AssetResolver.h"
 #include "Core/Program/ProgramManager.h"
+#include "Core/API/Buffer.h"
 #include "Utils/Scripting/ScriptBindings.h"
 #include "Utils/Threading.h"
 #include "Utils/Timing/Profiler.h"
@@ -36,11 +37,43 @@
 #include "Utils/UI/Gui.h"
 #include "Utils/UI/InputTypes.h"
 #include "RenderGraph/RenderPassStandardFlags.h"
+#include "Core/API/PythonHelpers.h"
 #include <imgui.h>
 
 namespace Falcor
 {
 
+
+inline pybind11::ndarray<pybind11::numpy> buffer_to_numpy(const Buffer& self)
+{
+    size_t bufferSize = self.getSize();
+    void* cpuData = new uint8_t[bufferSize];
+    self.getBlob(cpuData, 0, bufferSize);
+
+    pybind11::capsule owner(cpuData, [](void* p) noexcept { delete[] reinterpret_cast<uint8_t*>(p); });
+
+    if (auto dtype = resourceFormatToDtype(self.getFormat()))
+    {
+        uint32_t channelCount = getFormatChannelCount(self.getFormat());
+        if (channelCount == 1)
+        {
+            pybind11::size_t shape[1] = {self.getElementCount()};
+            return pybind11::ndarray<pybind11::numpy>(cpuData, 1, shape, owner, nullptr, *dtype, pybind11::device::cpu::value);
+        }
+        else
+        {
+            pybind11::size_t shape[2] = {self.getElementCount(), channelCount};
+            return pybind11::ndarray<pybind11::numpy>(cpuData, 2, shape, owner, nullptr, *dtype, pybind11::device::cpu::value);
+        }
+    }
+    else
+    {
+        pybind11::size_t shape[1] = {bufferSize};
+        return pybind11::ndarray<pybind11::numpy>(
+            cpuData, 1, shape, owner, nullptr, pybind11::dtype<uint8_t>(), pybind11::device::cpu::value
+        );
+    }
+}
 Testbed::Testbed(const Options& options)
 {
     internalInit(options);
@@ -605,38 +638,15 @@ void Testbed::captureOutput(const std::filesystem::path& path, uint32_t outputIn
 
 
 // added by sht
-Testbed::PyTorchTensor Testbed::getEmissive(const uint3 dim)
+pybind11::ndarray<pybind11::numpy> Testbed::getEmissive(const uint3 dim)
 {
 #if FALCOR_HAS_CUDA
     // We create a tensor and return to PyTorch. Falcor retains ownership of the memory.
     // The Pytorch side is free to access the tensor up until the next call to this function.
     // The caller is responsible for synchronizing the access or copying the data into its own memory.
-    using PytTorchTensor = Testbed::PyTorchTensor;
-    RenderContext* pRenderContext = mpDevice->getRenderContext();
-
-    const size_t elemCount = (size_t)dim.x * dim.y * dim.z;
-    const size_t byteSize = elemCount * sizeof(float);
-    FALCOR_CHECK(byteSize <= std::numeric_limits<uint32_t>::max(), "Buffer is too large.");
-
-    mSharedWriteBuffer = createInteropBuffer(mpDevice, byteSize);
     ref<RenderPass> ap = mpRenderGraph->getPass("AccumulatePass");
     ref<Buffer> emissiveBuffer = ap->getBuffer();
-    // Copy data to shared CUDA buffer.
-    pRenderContext->copyResource(mSharedWriteBuffer.buffer.get(), emissiveBuffer.get());
-
-    // Wait for copy to finish.
-    pRenderContext->waitForFalcor();
-
-    // Construct PyTorch tensor from CUDA buffer.
-
-    const pybind11::dlpack::dtype dtype = pybind11::dtype<float>();
-    const size_t shape[3] = {dim.x, dim.y, dim.z};
-    int32_t deviceType = pybind11::device::cuda::value;
-    int32_t deviceId = 0; // TODO: Consistent enumeration of GPU device IDs.
-    PyTorchTensor tensor = PyTorchTensor(
-        (void*)mSharedWriteBuffer.devicePtr, 3, shape, pybind11::handle() /* owner */, nullptr /* strides */, dtype, deviceType, deviceId
-    );
-    return tensor;
+    return buffer_to_numpy(*emissiveBuffer.get());
 #else
     FALCOR_THROW("CUDA is not available.");
 #endif
@@ -682,7 +692,7 @@ FALCOR_SCRIPT_BINDING(Testbed)
         "width"_a = 1920,
         "height"_a = 1080,
         "create_window"_a = false,
-        "device_type"_a = Device::Type::Vulkan,
+        "device_type"_a = Device::Type::Default,
         "gpu"_a = 0,
         "enable_debug_layers"_a = false,
         "enable_aftermath"_a = false,

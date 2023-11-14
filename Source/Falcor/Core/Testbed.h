@@ -145,7 +145,7 @@ public:
     /// Returns true if the application should terminate.
     /// This is true if the window was closed or escape was pressed.
     bool shouldClose() const { return mShouldClose || (mpWindow && mpWindow->shouldClose()); }
-    PyTorchTensor getEmissive(const uint3 dim);
+    pybind11::ndarray<pybind11::numpy> getEmissive(const uint3 dim);
 
 private:
     // Implementation of Window::ICallbacks

@@ -434,3 +434,22 @@ void AccumulatePass::prepareAccumulation(RenderContext* pRenderContext, uint32_t
 ref<Buffer> AccumulatePass::getBuffer() {
     return mpEmissiveBuffer;
 }
+void AccumulatePass::getEmissive(const uint3 dim)
+{
+#if FALCOR_HAS_CUDA
+    // We create a tensor and return to PyTorch. Falcor retains ownership of the memory.
+    // The Pytorch side is free to access the tensor up until the next call to this function.
+    // The caller is responsible for synchronizing the access or copying the data into its own memory.
+    using PytTorchTensor = AccumulatePass::PyTorchTensor;
+    RenderContext* pRenderContext = mpDevice->getRenderContext();
+
+    const size_t elemCount = (size_t)dim.x * dim.y * dim.z;
+    const size_t byteSize = elemCount * sizeof(float);
+    FALCOR_CHECK(byteSize <= std::numeric_limits<uint32_t>::max(), "Buffer is too large.");
+
+    mSharedWriteBuffer = createInteropBuffer(mpDevice, byteSize);
+
+#else
+    FALCOR_THROW("CUDA is not available.");
+#endif
+}

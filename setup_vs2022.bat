@@ -33,4 +33,5 @@ if errorlevel 1 (
 )
 
 : Success.
+pause
 exit /b 0

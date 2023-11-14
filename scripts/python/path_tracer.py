@@ -32,11 +32,7 @@ def main():
 
     testbed.run()
     cc = testbed.getEmissive(falcor.uint3(1080, 1920, 16))
-    emissive = cc[:,:,0:3].cpu().numpy()
-
-    emissive = cv2.cvtColor(emissive,cv2.COLOR_BGR2RGB)
-    cv2.imwrite("fungraphics.exr",emissive)
-
+    print(type((cc)))
 
 if __name__ == "__main__":
     main()
