@@ -44,8 +44,8 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 namespace
 {
 const char kShaderFile[] = "RenderPasses/AccumulatePass/Accumulate.cs.slang";
-
 const char kInputChannel[] = "input";
+const std::string kBufferChannel[] = {"emissive", "normW", "posW", "viewW", "diffuseOpacity"};
 const char kOutputChannel[] = "output";
 
 // Serialized parameters
@@ -117,6 +117,8 @@ RenderPassReflection AccumulatePass::reflect(const CompileData& compileData)
     const auto fmt = mOutputFormat != ResourceFormat::Unknown ? mOutputFormat : ResourceFormat::RGBA32Float;
 
     reflector.addInput(kInputChannel, "Input data to be temporally accumulated").bindFlags(ResourceBindFlags::ShaderResource);
+    for (auto iter:kBufferChannel)
+        reflector.addInput(iter.c_str(), "buffer").bindFlags(ResourceBindFlags::ShaderResource);
     reflector.addOutput(kOutputChannel, "Output data that is temporally accumulated")
         .bindFlags(ResourceBindFlags::RenderTarget | ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource)
         .format(fmt)
@@ -208,7 +210,7 @@ void AccumulatePass::execute(RenderContext* pRenderContext, const RenderData& re
     }
     else if (resolutionMatch)
     {
-        accumulate(pRenderContext, pSrc, pDst);
+        accumulate(pRenderContext, pSrc, pDst,renderData);
     }
     else
     {
@@ -217,13 +219,17 @@ void AccumulatePass::execute(RenderContext* pRenderContext, const RenderData& re
     }
 }
 
-void AccumulatePass::accumulate(RenderContext* pRenderContext, const ref<Texture>& pSrc, const ref<Texture>& pDst)
+void AccumulatePass::accumulate(
+    RenderContext* pRenderContext,
+    const ref<Texture>& pSrc,
+    const ref<Texture>& pDst,
+    const RenderData& renderData)
 {
     FALCOR_ASSERT(pSrc && pDst);
     FALCOR_ASSERT(pSrc->getWidth() == mFrameDim.x && pSrc->getHeight() == mFrameDim.y);
     FALCOR_ASSERT(pDst->getWidth() == mFrameDim.x && pDst->getHeight() == mFrameDim.y);
     const FormatType srcType = getFormatType(pSrc->getFormat());
-
+  
     // If for the first time, or if the input format type has changed, (re)compile the programs.
     if (mpProgram.empty() || srcType != mSrcType)
     {
@@ -269,7 +275,10 @@ void AccumulatePass::accumulate(RenderContext* pRenderContext, const ref<Texture
     var["PerFrameCB"]["gMovingAverageMode"] = (mMaxFrameCount > 0);
     var["gCurFrame"] = pSrc;
     var["gOutputFrame"] = pDst;
-
+    for (auto iter : kBufferChannel)
+    {
+        var[iter] = renderData.getTexture(iter);
+    }
     // Bind accumulation buffers. Some of these may be nullptr's.
     var["gLastFrameSum"] = mpLastFrameSum;
     var["gLastFrameCorr"] = mpLastFrameCorr;
@@ -381,7 +390,7 @@ void AccumulatePass::prepareAccumulation(RenderContext* pRenderContext, uint32_t
 {
     // Allocate/resize/clear buffers for intermedate data. These are different depending on accumulation mode.
     // Buffers that are not used in the current mode are released.
-    int elementCount = width * height * 16;
+    int elementCount = width * height * 19;
     auto prepareBuffer = [&](ref<Texture>& pBuf, ResourceFormat format, bool bufUsed)
     {
         if (!bufUsed)

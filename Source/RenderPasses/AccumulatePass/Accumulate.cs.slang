@@ -61,13 +61,18 @@ typedef int4 InputDataType;
 #endif
 
 Texture2D<InputDataType> gCurFrame;
+Texture2D<InputDataType> emissive;
+Texture2D<InputDataType> posW;
+Texture2D<InputDataType> normW;
+Texture2D<InputDataType> viewW;
+Texture2D<InputDataType> diffuseOpacity;
 RWTexture2D<float4> gOutputFrame;
 
 // Last frame data, format depends on accumulation mode.
 RWTexture2D<float4> gLastFrameSum;  // If mode is Single or SingleKahan
 RWTexture2D<float4> gLastFrameCorr; // If mode is SingleKahan
 RWTexture2D<uint4> gLastFrameSumLo; // If mode is Double
-RWTexture2D<uint4> gLastFrameSumHi; // If mode is Double    
+RWTexture2D<uint4> gLastFrameSumHi; // If mode is Double
 RWStructuredBuffer<float> bufferUav;
 /**
  * Single precision standard summation.
@@ -79,7 +84,7 @@ void accumulateSingle(uint3 dispatchThreadId: SV_DispatchThreadID)
         return;
     const uint2 pixelPos = dispatchThreadId.xy;
     const float4 curColor = gCurFrame[pixelPos];
-    uint index = (pixelPos.x  + pixelPos.y * gResolution.x) * 16;
+    uint index = (pixelPos.x  + pixelPos.y * gResolution.x) * 19;
     float4 output;
     if (gAccumulate)
     {
@@ -112,6 +117,29 @@ void accumulateSingle(uint3 dispatchThreadId: SV_DispatchThreadID)
     bufferUav[index] = output.x;
     bufferUav[index + 1] = output.y;
     bufferUav[index + 2] = output.z;
+
+    bufferUav[index + 3] = emissive[pixelPos].x;
+    bufferUav[index + 4] = emissive[pixelPos].y;
+    bufferUav[index + 5] = emissive[pixelPos].z;
+
+    bufferUav[index + 6] = normW[pixelPos].x;
+    bufferUav[index + 7] = normW[pixelPos].y;
+    bufferUav[index + 8] = normW[pixelPos].z;
+
+    bufferUav[index + 9] = posW[pixelPos].x;
+    bufferUav[index + 10] = posW[pixelPos].y;
+    bufferUav[index + 11] = posW[pixelPos].z;
+
+    bufferUav[index + 12] = viewW[pixelPos].x;
+    bufferUav[index + 13] = viewW[pixelPos].y;
+    bufferUav[index + 14] = viewW[pixelPos].z;
+
+    bufferUav[index + 15] = diffuseOpacity[pixelPos].x;
+    bufferUav[index + 16] = diffuseOpacity[pixelPos].y;
+    bufferUav[index + 17] = diffuseOpacity[pixelPos].z;
+    bufferUav[index + 18] = diffuseOpacity[pixelPos].w;
+
+
 }
 
 /**

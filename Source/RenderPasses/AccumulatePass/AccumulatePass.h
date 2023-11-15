@@ -103,7 +103,12 @@ public:
 
 protected:
     void prepareAccumulation(RenderContext* pRenderContext, uint32_t width, uint32_t height);
-    void accumulate(RenderContext* pRenderContext, const ref<Texture>& pSrc, const ref<Texture>& pDst);
+    void accumulate(
+        RenderContext* pRenderContext,
+        const ref<Texture>& pSrc,
+        const ref<Texture>& pDst,
+        const RenderData& renderData
+    );
 
     // Internal state
 

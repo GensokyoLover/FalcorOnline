@@ -148,7 +148,23 @@ void GBufferRT::execute(RenderContext* pRenderContext, const RenderData& renderD
         // logWarning("GBufferRT::execute() - Ray differentials are not tested for instance transforms that flip the coordinate system
         // handedness. The results may be incorrect.");
     }
-
+    int elementCount = pOutput->getWidth() * pOutput->getHeight() * 16;
+    // added by sht
+    if (mpGBuffer == nullptr || mpGBuffer->getElementCount() < elementCount)
+    {
+        // Create data buffer and CUDA shared buffer for async PyTorch access.
+        // Pytorch can access the data in the shared buffer while we generate new data into the data buffer.
+        // It is fine to recreate the buffers here without syncing as the caller is responsible for synchronization.
+        logInfo("Reallocating buffers to size {} bytes", elementCount);
+        mpGBuffer = mpDevice->createStructuredBuffer(
+            sizeof(float),
+            elementCount,
+            ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess,
+            MemoryType::DeviceLocal,
+            nullptr,
+            false
+        );
+    }
     mUseTraceRayInline ? executeCompute(pRenderContext, renderData) : executeRaytrace(pRenderContext, renderData);
 
     mFrameCount++;
@@ -360,4 +376,9 @@ void GBufferRT::bindShaderData(const ShaderVar& var, const RenderData& renderDat
         bind(channel);
     for (const auto& channel : kGBufferExtraChannels)
         bind(channel);
+}
+
+ref<Buffer> GBufferRT::getBuffer()
+{
+    return mpGBuffer;
 }

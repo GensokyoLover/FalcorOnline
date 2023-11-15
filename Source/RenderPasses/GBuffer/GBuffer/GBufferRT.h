@@ -50,6 +50,7 @@ public:
     void renderUI(Gui::Widgets& widget) override;
     Properties getProperties() const override;
     void setScene(RenderContext* pRenderContext, const ref<Scene>& pScene) override;
+    ref<Buffer> getBuffer() override;
 
 private:
     void parseProperties(const Properties& props) override;
@@ -80,6 +81,6 @@ private:
         ref<Program> pProgram;
         ref<RtProgramVars> pVars;
     } mRaytrace;
-
+    ref<Buffer> mpGBuffer;
     ref<ComputePass> mpComputePass;
 };
