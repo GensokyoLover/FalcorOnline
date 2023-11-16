@@ -16,6 +16,7 @@ def render_graph_PathTracer():
     g.add_edge("GBufferRT.normW", "AccumulatePass.normW")
     g.add_edge("GBufferRT.viewW", "AccumulatePass.viewW")
     g.add_edge("GBufferRT.diffuseOpacity", "AccumulatePass.diffuseOpacity")
+    g.add_edge("GBufferRT.specRough", "AccumulatePass.specRough")
     g.addEdge("PathTracer.color", "AccumulatePass.input")
     g.addEdge("AccumulatePass.output", "ToneMapper.src")
     g.markOutput("ToneMapper.dst")

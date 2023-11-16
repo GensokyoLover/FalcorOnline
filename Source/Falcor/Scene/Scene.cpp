@@ -1994,6 +1994,7 @@ namespace Falcor
         if (camera->hasAnimation())
         {
             bool isAnimated = camera->isAnimated();
+            
             if (widget.checkbox("Animate Camera", isAnimated)) camera->setIsAnimated(isAnimated);
         }
 

@@ -90,6 +90,7 @@ void Testbed::run()
 
     while ((!mpWindow || !mpWindow->shouldClose()) && !mShouldInterrupt && mFrameRate.getFrameCount()<spp)
         frame();
+    mFrameRate.reset();
 }
 
 void Testbed::interrupt()
@@ -190,7 +191,10 @@ void Testbed::resizeFrameBuffer(uint32_t width, uint32_t height)
 void Testbed::loadScene(const std::filesystem::path& path, SceneBuilder::Flags buildFlags)
 {
     mpScene = SceneBuilder(mpDevice, path, Settings(), buildFlags).getScene();
-
+    auto cameraref = mpScene->getCamera();
+    cameraref->setIsAnimated(false);
+    auto animatedControl = mpScene->getAnimationController();
+    animatedControl->setEnabled(false);
     if (mpRenderGraph)
         mpRenderGraph->setScene(mpScene);
 }
@@ -646,12 +650,19 @@ pybind11::ndarray<pybind11::numpy> Testbed::getEmissive(const uint3 dim)
     // The caller is responsible for synchronizing the access or copying the data into its own memory.
     ref<RenderPass> ap = mpRenderGraph->getPass("AccumulatePass");
     ref<Buffer> emissiveBuffer = ap->getBuffer();
+    auto numpy = buffer_to_numpy(*emissiveBuffer.get());
+    
     return buffer_to_numpy(*emissiveBuffer.get());
 #else
     FALCOR_THROW("CUDA is not available.");
 #endif
 }
 
+
+AABB Testbed::getSceneBound()
+{
+    return mpScene->getSceneBounds();
+}
 FALCOR_SCRIPT_BINDING(Testbed)
 {
     FALCOR_SCRIPT_BINDING_DEPENDENCY(Device)
@@ -713,6 +724,7 @@ FALCOR_SCRIPT_BINDING(Testbed)
     testbed.def("load_render_graph", &Testbed::loadRenderGraph, "path"_a);
     testbed.def("capture_output", &Testbed::captureOutput, "path"_a, "output_index"_a = uint32_t(0)); // PYTHONDEPRECATED
     testbed.def("getEmissive", &Testbed::getEmissive);
+    testbed.def("getSceneBound", &Testbed::getSceneBound);
     testbed.def_property_readonly("profiler", [](Testbed* pTestbed) { return pTestbed->getDevice()->getProfiler(); });
 
     testbed.def_property_readonly("device", &Testbed::getDevice);

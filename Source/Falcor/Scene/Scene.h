@@ -1062,7 +1062,7 @@ namespace Falcor
 
         /** Get the animation controller.
         */
-        const AnimationController* getAnimationController() const { return mpAnimationController.get(); }
+        AnimationController* getAnimationController() const { return mpAnimationController.get(); }
 
         /** Get the scene's animations.
         */

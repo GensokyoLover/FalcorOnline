@@ -66,6 +66,7 @@ Texture2D<InputDataType> posW;
 Texture2D<InputDataType> normW;
 Texture2D<InputDataType> viewW;
 Texture2D<InputDataType> diffuseOpacity;
+Texture2D<InputDataType> specRough;
 RWTexture2D<float4> gOutputFrame;
 
 // Last frame data, format depends on accumulation mode.

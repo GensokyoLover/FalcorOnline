@@ -146,6 +146,7 @@ public:
     /// This is true if the window was closed or escape was pressed.
     bool shouldClose() const { return mShouldClose || (mpWindow && mpWindow->shouldClose()); }
     pybind11::ndarray<pybind11::numpy> getEmissive(const uint3 dim);
+    AABB getSceneBound();
 
 private:
     // Implementation of Window::ICallbacks

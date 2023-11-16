@@ -220,7 +220,7 @@ void VBufferRT::executeRaytrace(RenderContext* pRenderContext, const RenderData&
         // Add hit group with intersection shader for curves (represented as linear swept spheres).
         if (mpScene->hasGeometryType(Scene::GeometryType::Curve))
         {
-            sbt->setHitGroup(
+            sbt->setHitGroup( 
                 0, mpScene->getGeometryIDs(Scene::GeometryType::Curve), desc.addHitGroup("curveClosestHit", "", "curveIntersection")
             );
         }

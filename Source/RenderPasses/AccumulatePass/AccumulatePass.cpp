@@ -45,7 +45,7 @@ namespace
 {
 const char kShaderFile[] = "RenderPasses/AccumulatePass/Accumulate.cs.slang";
 const char kInputChannel[] = "input";
-const std::string kBufferChannel[] = {"emissive", "normW", "posW", "viewW", "diffuseOpacity"};
+const std::string kBufferChannel[] = {"emissive", "normW", "posW", "viewW", "diffuseOpacity", "specRough"};
 const char kOutputChannel[] = "output";
 
 // Serialized parameters
@@ -271,7 +271,7 @@ void AccumulatePass::accumulate(
     auto var = mpVars->getRootVar();
     var["PerFrameCB"]["gResolution"] = mFrameDim;
     var["PerFrameCB"]["gAccumCount"] = mFrameCount;
-    var["PerFrameCB"]["gAccumulate"] = mEnabled;
+    var["PerFrameCB"]["gAccumulate"] = true;
     var["PerFrameCB"]["gMovingAverageMode"] = (mMaxFrameCount > 0);
     var["gCurFrame"] = pSrc;
     var["gOutputFrame"] = pDst;
@@ -439,8 +439,13 @@ void AccumulatePass::prepareAccumulation(RenderContext* pRenderContext, uint32_t
             false
         );
     }
+    if (mFrameCount == 0)
+    {
+        pRenderContext->clearUAV(mpEmissiveBuffer->getUAV().get(), uint4(0));
+    }
 }
 ref<Buffer> AccumulatePass::getBuffer() {
+    reset();
     return mpEmissiveBuffer;
 }
 void AccumulatePass::getEmissive(const uint3 dim)

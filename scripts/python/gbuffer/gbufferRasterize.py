@@ -58,7 +58,7 @@ def test_tensor_from_falcor(test_pass, iterations=10):
 
 def main():
     random.seed(1)
-
+    json read
     # Create torch CUDA device
     print("Creating CUDA device")
     if not torch.cuda.is_available():
