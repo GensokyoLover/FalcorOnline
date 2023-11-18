@@ -47,6 +47,11 @@ import NRDHelpers;
 __exported import PathState;
 __exported import Params;
 
+cbuffer Window {
+    uint2 offSet = uint2(0, 0);
+    uint2 originWindow = uint2(1920, 1800);
+}
+
 /** Path tracer.
 
     This implements the high-level path tracing logic and is shared among
@@ -65,7 +70,7 @@ struct PathTracer
         */
         [mutating] bool traceVisibilityRay(const Ray ray);
     };
-
+    
     PathTracerParams params;                        ///< Runtime parameters.
 
     // Samplers
@@ -278,9 +283,9 @@ struct PathTracer
         path.thp = float3(1.f);
 
         const uint2 pixel = path.getPixel();
-
+        const uint2 yes = uint2(pixel.x + offSet.x, pixel.y + offSet.y);
         // Create primary ray.
-        Ray cameraRay = gScene.camera.computeRayPinhole(pixel, params.frameDim);
+        Ray cameraRay = gScene.camera.computeRayPinhole(yes, originWindow);
         if (kUseViewDir) cameraRay.dir = -viewDir[pixel];
         path.origin = cameraRay.origin;
         path.dir = cameraRay.dir;
@@ -802,7 +807,7 @@ struct PathTracer
         {
             // Filtered lookups at primary hit on triangle.
             float2 ddx, ddy;
-            computeDerivativesAtPrimaryTriangleHit(path.hit.getTriangleHit(), path.getPixel(), params.frameDim, ddx, ddy);
+            computeDerivativesAtPrimaryTriangleHit(path.hit.getTriangleHit(), path.getPixel(), originWindow, ddx, ddy);
             return ExplicitGradientTextureSampler(ddx, ddy);
         }
         else

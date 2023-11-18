@@ -83,7 +83,6 @@ RenderPassReflection GBufferRT::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
     const uint2 sz = RenderPassHelpers::calculateIOSize(mOutputSizeSelection, mFixedOutputSize, compileData.defaultTexDims);
-
     // Add all outputs as UAVs. These are all optional.
     addRenderPassOutputs(reflector, kGBufferChannels, ResourceBindFlags::UnorderedAccess, sz);
     addRenderPassOutputs(reflector, kGBufferExtraChannels, ResourceBindFlags::UnorderedAccess, sz);
@@ -102,6 +101,7 @@ void GBufferRT::execute(RenderContext* pRenderContext, const RenderData& renderD
     auto findOutput = [&](const std::string& name)
     {
         auto pTex = renderData.getTexture(name);
+
         if (pTex && !pOutput)
             pOutput = pTex;
     };
@@ -116,7 +116,7 @@ void GBufferRT::execute(RenderContext* pRenderContext, const RenderData& renderD
         return;
     }
     FALCOR_ASSERT(pOutput);
-    updateFrameDim(uint2(pOutput->getWidth(), pOutput->getHeight()));
+    updateFrameDim(windowDesc.originWindow);
 
     // If there is no scene, clear the output and return.
     if (mpScene == nullptr)
@@ -365,7 +365,7 @@ void GBufferRT::bindShaderData(const ShaderVar& var, const RenderData& renderDat
     var["gGBufferRT"]["invFrameDim"] = mInvFrameDim;
     var["gGBufferRT"]["frameCount"] = mFrameCount;
     var["gGBufferRT"]["screenSpacePixelSpreadAngle"] = mpScene->getCamera()->computeScreenSpacePixelSpreadAngle(mFrameDim.y);
-
+    var["gGBufferRT"]["offSet"] = windowDesc.patchPosition;
     // Bind output channels as UAV buffers.
     auto bind = [&](const ChannelDesc& channel)
     {

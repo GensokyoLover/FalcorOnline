@@ -233,9 +233,5 @@ ref<Texture> GBufferBase::getOutput(const RenderData& renderData, const std::str
     // This helper fetches the render pass output with the given name and verifies it has the correct size.
     FALCOR_ASSERT(mFrameDim.x > 0 && mFrameDim.y > 0);
     auto pTex = renderData.getTexture(name);
-    if (pTex && (pTex->getWidth() != mFrameDim.x || pTex->getHeight() != mFrameDim.y))
-    {
-        FALCOR_THROW("GBufferBase: Pass output '{}' has mismatching size. All outputs must be of the same size.", name);
-    }
     return pTex;
 }

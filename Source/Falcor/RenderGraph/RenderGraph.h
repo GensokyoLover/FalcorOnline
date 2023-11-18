@@ -153,7 +153,7 @@ public:
      * Update graph based on another graph's topology.
      */
     void update(const ref<RenderGraph>& pGraph);
-
+    void updateWindow(Window::Desc desc);
     /**
      * Set an external input resource.
      * @param[in] name Input name. Has the format `renderPassName.resourceName`.

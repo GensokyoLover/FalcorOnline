@@ -50,6 +50,7 @@ public:
     uint32_t addNode()
     {
         mNodes[mCurrentNodeId] = Node();
+        std::cout << mCurrentNodeId << std::endl;
         return mCurrentNodeId++;
     }
 
@@ -192,6 +193,7 @@ public:
 
     uint32_t getCurrentNodeId() const { return mCurrentNodeId; }
     uint32_t getCurrentEdgeId() const { return mCurrentEdgeId; }
+
 
 private:
     std::unordered_map<uint32_t, Node> mNodes;

@@ -97,13 +97,12 @@ struct PathGenerator
         // The tiles themselves are enumerated in scanline order on screen.
         const uint2 tileOffset = tileID << kScreenTileBits; // Tile offset in pixels.
         const uint2 pixel = deinterleave_8bit(threadIdx) + tileOffset; // Assumes 16x16 tile or smaller. A host-side assert checks this assumption.
-
         // Process each pixel.
         // If we don't hit any surface then the background will be evaluated and written out directly.
         Ray cameraRay;
         bool hitSurface = false;
         uint spp = 0;
-
+        const uint2 yes = uint2(pixel.x + offSet.x, pixel.y + offSet.y);
         // Note: Do not terminate threads for out-of-bounds pixels because we need all threads active for the prefix sum pass below.
         if (all(pixel < params.frameDim))
         {
@@ -113,7 +112,7 @@ struct PathGenerator
             spp = kSamplesPerPixel > 0 ? kSamplesPerPixel : min(sampleCount[pixel], kMaxSamplesPerPixel);
 
             // Compute the primary ray.
-            cameraRay = gScene.camera.computeRayPinhole(pixel, params.frameDim);
+            cameraRay = gScene.camera.computeRayPinhole(yes, params.frameDim);
             if (kUseViewDir) cameraRay.dir = -viewDir[pixel];
 
             // Load the primary hit from the V-buffer.

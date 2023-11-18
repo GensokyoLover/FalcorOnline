@@ -179,12 +179,11 @@ void sdfGridClosestHit(inout RayData hitData, SDFGridHitData sdfGridHitData)
 void rayGen()
 {
     uint2 launchIndex = DispatchRaysIndex().xy;
-
     GpuTimer timer;
     gGBufferRT.beginTime(timer);
 
     // Trace ray.
-    const Ray ray = gGBufferRT.generateRay(launchIndex);
+    const Ray ray = gGBufferRT.generateRay(launchIndex + gGBufferRT.offSet);
     RayData rayData;
     TraceRay(
         gScene.rtAccel,

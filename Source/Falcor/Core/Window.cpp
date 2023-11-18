@@ -392,7 +392,8 @@ Window::Window(const Desc& desc, ICallbacks* pCallbacks)
     // Create the window
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     uint32_t w = desc.width;
-    uint32_t h = desc.height;
+    uint32_t h = desc.height
+        ;
 
     if (desc.mode == WindowMode::Fullscreen)
     {

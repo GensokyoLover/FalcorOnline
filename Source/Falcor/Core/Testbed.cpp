@@ -76,6 +76,7 @@ inline pybind11::ndarray<pybind11::numpy> buffer_to_numpy(const Buffer& self)
 }
 Testbed::Testbed(const Options& options)
 {
+    windowDesc = options.windowDesc;
     internalInit(options);
 }
 
@@ -118,7 +119,7 @@ void Testbed::frame()
     // Clear the frame buffer.
     const float4 clearColor(1, 0, 1, 1);
     pRenderContext->clearFbo(mpTargetFBO.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
-
+    mpRenderGraph->updateWindow(windowDesc);
     // Compile the render graph.
     if (mpRenderGraph)
         mpRenderGraph->compile(pRenderContext);
@@ -317,6 +318,7 @@ void Testbed::handleGamepadState(const GamepadState& gamepadState)
 void Testbed::handleDroppedFile(const std::filesystem::path& path) {}
 
 // Internal
+
 
 void Testbed::internalInit(const Options& options)
 {
@@ -681,6 +683,8 @@ FALCOR_SCRIPT_BINDING(Testbed)
         pybind11::init(
             [](uint32_t width,
                uint32_t height,
+               uint2 position,
+               uint2 ow,
                bool create_window,
                Device::Type device_type,
                uint32_t gpu,
@@ -692,6 +696,8 @@ FALCOR_SCRIPT_BINDING(Testbed)
                 options.pDevice = device;
                 options.windowDesc.width = width;
                 options.windowDesc.height = height;
+                options.windowDesc.patchPosition = position;
+                options.windowDesc.originWindow = ow;
                 options.createWindow = create_window;
                 options.deviceDesc.type = device_type;
                 options.deviceDesc.gpu = gpu;
@@ -702,6 +708,8 @@ FALCOR_SCRIPT_BINDING(Testbed)
         ),
         "width"_a = 1920,
         "height"_a = 1080,
+        "position"_a = uint2(0,0),
+        "ow"_a = uint2(1920, 1080),
         "create_window"_a = false,
         "device_type"_a = Device::Type::Default,
         "gpu"_a = 0,
@@ -711,6 +719,7 @@ FALCOR_SCRIPT_BINDING(Testbed)
     );
     testbed.def("run", &Testbed::run);
     testbed.def("frame", &Testbed::frame);
+    testbed.def("setSpp", &Testbed::setSpp);
     testbed.def("resize_frame_buffer", &Testbed::resizeFrameBuffer, "width"_a, "height"_a);
     testbed.def("load_scene", &Testbed::loadScene, "path"_a, "build_flags"_a = SceneBuilder::Flags::Default);
     testbed.def(

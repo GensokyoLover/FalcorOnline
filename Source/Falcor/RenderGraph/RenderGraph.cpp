@@ -498,6 +498,13 @@ void RenderGraph::update(const ref<RenderGraph>& pGraph)
     }
 }
 
+void RenderGraph::updateWindow(Window::Desc desc) {
+    for (auto iter : mNodeData)
+    {
+        iter.second.pPass->updateWindow(desc);
+    }
+}
+
 void RenderGraph::setInput(const std::string& name, const ref<Resource>& pResource)
 {
     str_pair strPair;

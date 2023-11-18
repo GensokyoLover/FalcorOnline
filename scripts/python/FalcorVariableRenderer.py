@@ -32,8 +32,10 @@ def setup_renderpass(testbed):
 class FalcorVariableRenderer:
     def __init__(self, deviceType = falcor.DeviceType.D3D12, deviceID = 0):
         self.device = falcor.Device(type=deviceType, gpu=deviceID)
-        self.renderer = falcor.Testbed(width=1920, height=1080, create_window=True, device=self.device)
-
+        self.width = 32
+        self.height = 32
+        self.renderer = falcor.Testbed(width=self.width, height=self.height, position = falcor.uint2(600,600),ow =falcor.uint2(1920,1080) ,create_window=False, device=self.device)
+        self.renderer.setSpp(2000)
         self.scene = None
         self.integrator = None
         self.params = None
@@ -377,8 +379,8 @@ class FalcorVariableRenderer:
         self.renderer.run()
         buffers = []
         gt = []
-        abuffer = self.renderer.getEmissive(falcor.uint3(1061, 1920, 19))
-        abuffer = abuffer.reshape((1061,1920,19))
+        abuffer = self.renderer.getEmissive(falcor.uint3(self.height, self.width, 19))
+        abuffer = abuffer.reshape((self.height,self.width,19))
         gt = abuffer[:,:,0:3]
         buffer = abuffer[:,:,3:19]
 

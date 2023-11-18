@@ -77,6 +77,7 @@ struct GBufferRT
 
     uint2 frameDim;
     float2 invFrameDim;
+    uint2 offSet = uint2(0, 0); // added by sht, to achieve crop 
     uint frameCount;
     float screenSpacePixelSpreadAngle;
 

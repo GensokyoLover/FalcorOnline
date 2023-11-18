@@ -10,7 +10,7 @@ from FalcorVariableRenderer import FalcorVariableRenderer
 from mcmc_sampler import MarkovChainSampler
 def main():
     falcor.Logger.verbosity = falcor.Logger.Level.Info
-    config_path = r'E:\falcor7\Falcor\scripts\python\variable.json'
+    config_path = r'E:\FalcorOnline\scripts\python\variable.json'
     #scene_path = r'E:\EmeraldSquare_v4_1\EmeraldSquare_Day.pyscene'
     scene_path = 'test_scenes/cornell_box.pyscene'
 
@@ -19,6 +19,7 @@ def main():
     renderer.load_config(config_path)
     sampler = MarkovChainSampler(large_step_prob=1.0, mutation_size_large=0.05,
                        mutation_size_small=0.04, dimensions=5)
+    start = time.time()
     for i in range(10):
         variableDict = renderer.variables
         custom_values = {}
@@ -32,6 +33,7 @@ def main():
         sampler.mutate()
         buffer,gt,custom = renderer.get_custom_render(custom_values)
         gt = cv2.cvtColor(gt, cv2.COLOR_BGR2RGB)
-        cv2.imwrite("fungraphics.exr", gt)
+        end = time.time() - start
+        print(end)
 if __name__ == "__main__":
     main()

@@ -1294,7 +1294,10 @@ void PathTracer::generatePaths(RenderContext* pRenderContext, const RenderData& 
     // Bind resources.
     auto var = mpGeneratePaths->getRootVar()["CB"]["gPathGenerator"];
     bindShaderData(var, renderData, false);
-
+    var = mpGeneratePaths->getRootVar();
+    var["Window"]["offSet"] = windowDesc.patchPosition;
+    var["Window"]["originWindow"] = windowDesc.originWindow;
+  
     mpScene->bindShaderData(mpGeneratePaths->getRootVar()["gScene"]);
 
     if (mpRTXDI) mpRTXDI->bindShaderData(mpGeneratePaths->getRootVar());
@@ -1318,6 +1321,9 @@ void PathTracer::tracePass(RenderContext* pRenderContext, const RenderData& rend
 
     // Bind global resources.
     auto var = tracePass.pVars->getRootVar();
+    var["Window"]["offSet"] = windowDesc.patchPosition;
+    var["Window"]["originWindow"] = windowDesc.originWindow;
+  
     mpScene->setRaytracingShaderData(pRenderContext, var);
 
     if (mVarsChanged) mpSampleGenerator->bindShaderData(var);

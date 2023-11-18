@@ -645,6 +645,7 @@ void scatterSdfGridClosestHit(inout PathPayload payload, SDFGridHitData sdfGridH
 [shader("raygeneration")]
 void rayGen()
 {
+    
     uint2 pixel = DispatchRaysIndex().xy;
     uint2 frameDim = DispatchRaysDimensions().xy;
     if (all(pixel >= frameDim)) return;

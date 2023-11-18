@@ -147,6 +147,7 @@ public:
     bool shouldClose() const { return mShouldClose || (mpWindow && mpWindow->shouldClose()); }
     pybind11::ndarray<pybind11::numpy> getEmissive(const uint3 dim);
     AABB getSceneBound();
+    void setSpp(int s) { spp = s; }
 
 private:
     // Implementation of Window::ICallbacks
@@ -177,7 +178,7 @@ private:
     ref<Scene> mpScene;
     ref<RenderGraph> mpRenderGraph;
     ref<Texture> mpRenderTexture;
-
+    Options ops;
     std::unique_ptr<ImageProcessing> mpImageProcessing;
 #if FALCOR_HAS_CUDA
     /// Shared CUDA/Falcor buffer for passing data from Falcor to PyTorch asynchronously.
@@ -195,6 +196,7 @@ private:
         bool showUI = true;
         bool showFPS = true;
     } mUI;
+    Window::Desc windowDesc;
 };
 
 } // namespace Falcor

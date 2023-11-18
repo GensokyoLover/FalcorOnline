@@ -26,6 +26,7 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 #pragma once
+#include "Core/Window.h"
 #include "ResourceCache.h"
 #include "Core/Macros.h"
 #include "Core/Object.h"
@@ -244,6 +245,7 @@ public:
     const std::string& getName() const { return mName; }
 
     virtual ref<Buffer> getBuffer() { return nullptr; }
+    virtual void updateWindow(Window::Desc desc) { windowDesc = desc; }
 
 protected:
     RenderPass(ref<Device> pDevice) : mpDevice(pDevice) {}
@@ -260,7 +262,7 @@ protected:
     std::string mName;
 
     std::function<void(void)> mPassChangedCB = [] {};
-
+    Window::Desc windowDesc;
     friend class RenderGraph;
 };
 } // namespace Falcor

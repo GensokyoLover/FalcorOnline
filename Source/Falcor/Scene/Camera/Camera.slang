@@ -31,8 +31,8 @@ import Utils.Math.MathHelpers;
 
 struct Camera
 {
+    
     CameraData data;
-
     float3 getPosition() { return data.posW; }
     float4x4 getViewProj() { return data.viewProjMat; }
 
@@ -45,8 +45,8 @@ struct Camera
     */
     Ray computeRayPinhole(uint2 pixel, uint2 frameDim, bool applyJitter = true)
     {
+        
         Ray ray;
-
         // Compute the normalized ray direction assuming a pinhole camera.
         ray.origin = data.posW;
         ray.dir = normalize(computeNonNormalizedRayDirPinhole(pixel, frameDim, applyJitter));
