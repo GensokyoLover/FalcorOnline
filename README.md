@@ -1,7 +1,11 @@
 ![](docs/images/teaser.png)
 
-# Falcor
-
+# FalcorOnline
+## New Features Update:
+1. 支持直接在python端从falcor里面获取gbuffer和渲染结果
+2. 支持Crop，能够选择性截取窗口的一部分进行渲染
+3. 添加FalcorVariableRenderer，实现python端对falcor更加完整的控制，包括相机等信息，可以读取json文件来提供可变信息
+##
 Falcor is a real-time rendering framework supporting DirectX 12 and Vulkan. It aims to improve productivity of research and prototype projects.
 
 Features include:
