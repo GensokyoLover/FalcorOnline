@@ -723,7 +723,7 @@ FALCOR_SCRIPT_BINDING(Testbed)
     testbed.def("setSpp", &Testbed::setSpp);
     testbed.def("setPatchSize", &Testbed::setPatchSize);
     testbed.def("setResolution", &Testbed::setResolution);
-    testbed.def("setSpp", &Testbed::setStartPosition);
+    testbed.def("setStartPosition", &Testbed::setStartPosition);
     testbed.def("resize_frame_buffer", &Testbed::resizeFrameBuffer, "width"_a, "height"_a);
     testbed.def("load_scene", &Testbed::loadScene, "path"_a, "build_flags"_a = SceneBuilder::Flags::Default);
     testbed.def(

@@ -33,11 +33,11 @@ class FalcorVariableRenderer:
     def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.Vulkan, deviceID = 4):
         self.device = falcor.Device(type=deviceType, gpu=deviceID)
         self.tomemap_type = tonemap_type
-        self.width = 32
-        self.height = 32
-        self.width = 320
-        self.height = 320
-        self.renderer = falcor.Testbed(width=self.width, height=self.height, position = falcor.uint2(600,600),ow =falcor.uint2(1920,1080) ,create_window=False, device=self.device)
+        self.width = 128
+        self.height = 128
+        self.resolution = falcor.uint2(160,160)
+        self.startPosition = falcor.uint2(0,0)
+        self.renderer = falcor.Testbed(width=self.width, height=self.height, position = self.startPosition,ow =self.resolution ,create_window=False, device=self.device)
         self.renderer.setSpp(400)
         self.scene = None
         self.integrator = None
@@ -375,8 +375,10 @@ class FalcorVariableRenderer:
 
         # Set up the scene for the given custom  values and check intersection
         custom_values = self.setup_scene(custom_values)
-        self.renderer.setPatchSize(falcor.uint2(self.width,self.height))
-        # Call the scene's integrator to render the loaded scene
+        self.renderer.setPatchSize(falcor.uint2(self.width, self.height))
+        self.renderer.setResolution(self.resolution)
+        self.renderer.setStartPosition(self.startPosition)
+        #Call the scene's integrator to render the loaded scene
 
         self.renderer.run()
         buffers = []
