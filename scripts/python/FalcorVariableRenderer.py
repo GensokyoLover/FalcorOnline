@@ -32,14 +32,11 @@ def setup_renderpass(testbed):
 class FalcorVariableRenderer:
     def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.Vulkan, deviceID = 4):
         self.device = falcor.Device(type=deviceType, gpu=deviceID)
-<<<<<<< HEAD
         self.tomemap_type = tonemap_type
         self.width = 32
         self.height = 32
-=======
         self.width = 320
         self.height = 320
->>>>>>> 09ce7f8d2d8db24988666cc21c96d780e0c14b58
         self.renderer = falcor.Testbed(width=self.width, height=self.height, position = falcor.uint2(600,600),ow =falcor.uint2(1920,1080) ,create_window=False, device=self.device)
         self.renderer.setSpp(400)
         self.scene = None
