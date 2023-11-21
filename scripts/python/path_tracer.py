@@ -10,7 +10,7 @@ from FalcorVariableRenderer import FalcorVariableRenderer
 from mcmc_sampler import MarkovChainSampler
 def main():
     falcor.Logger.verbosity = falcor.Logger.Level.Info
-    config_path = r'E:\FalcorOnline\scripts\python\variable.json'
+    config_path = r'/mnt/sht/FalcorOnline/scripts/python/variable.json'
     #scene_path = r'E:\EmeraldSquare_v4_1\EmeraldSquare_Day.pyscene'
     scene_path = 'test_scenes/cornell_box.pyscene'
 
