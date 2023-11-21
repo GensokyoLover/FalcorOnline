@@ -424,7 +424,7 @@ void AccumulatePass::prepareAccumulation(RenderContext* pRenderContext, uint32_t
     prepareBuffer(mpLastFrameSumLo, ResourceFormat::RGBA32Uint, mPrecisionMode == Precision::Double);
     prepareBuffer(mpLastFrameSumHi, ResourceFormat::RGBA32Uint, mPrecisionMode == Precision::Double);
     //added by sht
-    if (mpEmissiveBuffer == nullptr || mpEmissiveBuffer->getElementCount() < elementCount)
+    if (mpEmissiveBuffer == nullptr || mpEmissiveBuffer->getElementCount() != elementCount)
     {
         // Create data buffer and CUDA shared buffer for async PyTorch access.
         // Pytorch can access the data in the shared buffer while we generate new data into the data buffer.

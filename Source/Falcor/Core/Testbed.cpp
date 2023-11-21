@@ -88,7 +88,8 @@ Testbed::~Testbed()
 void Testbed::run()
 {
     mShouldInterrupt = false;
-
+    if (mpTargetFBO->getWidth() != windowDesc.width || mpTargetFBO->getHeight() != windowDesc.height)
+        resizeFrameBuffer(windowDesc.width, windowDesc.height);
     while ((!mpWindow || !mpWindow->shouldClose()) && !mShouldInterrupt && mFrameRate.getFrameCount()<spp)
         frame();
     mFrameRate.reset();
@@ -720,6 +721,9 @@ FALCOR_SCRIPT_BINDING(Testbed)
     testbed.def("run", &Testbed::run);
     testbed.def("frame", &Testbed::frame);
     testbed.def("setSpp", &Testbed::setSpp);
+    testbed.def("setPatchSize", &Testbed::setPatchSize);
+    testbed.def("setResolution", &Testbed::setResolution);
+    testbed.def("setSpp", &Testbed::setStartPosition);
     testbed.def("resize_frame_buffer", &Testbed::resizeFrameBuffer, "width"_a, "height"_a);
     testbed.def("load_scene", &Testbed::loadScene, "path"_a, "build_flags"_a = SceneBuilder::Flags::Default);
     testbed.def(
