@@ -32,9 +32,14 @@ def setup_renderpass(testbed):
 class FalcorVariableRenderer:
     def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.Vulkan, deviceID = 4):
         self.device = falcor.Device(type=deviceType, gpu=deviceID)
+<<<<<<< HEAD
         self.tomemap_type = tonemap_type
         self.width = 32
         self.height = 32
+=======
+        self.width = 320
+        self.height = 320
+>>>>>>> 09ce7f8d2d8db24988666cc21c96d780e0c14b58
         self.renderer = falcor.Testbed(width=self.width, height=self.height, position = falcor.uint2(600,600),ow =falcor.uint2(1920,1080) ,create_window=False, device=self.device)
         self.renderer.setSpp(400)
         self.scene = None
@@ -174,11 +179,9 @@ class FalcorVariableRenderer:
     def setup_scene(self, custom_values):
         print(custom_values)
         for key in custom_values:
-            finalvalue = self.min_bounds[key] + custom_values[key] * self.len_bounds[key]
             print(self.min_bounds[key])
             print(self.len_bounds[key])
-            print(custom_values[key])
-            print(finalvalue)
+            finalvalue = self.min_bounds[key] + custom_values[key] * self.len_bounds[key]
             if key == "sensor":
                 pos = falcor.float3(finalvalue[0],finalvalue[1],finalvalue[2])
                 direction = sphereSample_uniform(finalvalue[3],finalvalue[4])
@@ -187,7 +190,8 @@ class FalcorVariableRenderer:
                 target = pos + direction
                 self.sensor.target = target
                 self.sensor.up = falcor.float3(0, 1, 0)
-                print(self.sensor)
+                print(self.sensor.position)
+                print(self.sensor.target)
 
             '''
             # Emitters
@@ -374,7 +378,7 @@ class FalcorVariableRenderer:
 
         # Set up the scene for the given custom  values and check intersection
         custom_values = self.setup_scene(custom_values)
-
+        self.renderer.setPatchSize(falcor.uint2(self.width,self.height))
         # Call the scene's integrator to render the loaded scene
 
         self.renderer.run()

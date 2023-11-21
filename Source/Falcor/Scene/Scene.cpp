@@ -1981,6 +1981,7 @@ namespace Falcor
     {
         if (mpAnimationController->hasAnimations())
         {
+            mpAnimationController->setEnabled(false);
             bool isEnabled = mpAnimationController->isEnabled();
             if (widget.checkbox("Animate Scene", isEnabled)) mpAnimationController->setEnabled(isEnabled);
 
@@ -1993,6 +1994,7 @@ namespace Falcor
         auto camera = mCameras[mSelectedCamera];
         if (camera->hasAnimation())
         {
+            camera->setIsAnimated(false);
             bool isAnimated = camera->isAnimated();
             
             if (widget.checkbox("Animate Camera", isAnimated)) camera->setIsAnimated(isAnimated);

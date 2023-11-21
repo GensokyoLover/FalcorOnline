@@ -148,6 +148,9 @@ public:
     pybind11::ndarray<pybind11::numpy> getEmissive(const uint3 dim);
     AABB getSceneBound();
     void setSpp(int s) { spp = s; }
+    void setResolution(uint2 ow) { windowDesc.originWindow = ow;};
+    void setPatchSize(uint2 ps) { windowDesc.width = ps.x, windowDesc.height = ps.y; };
+    void setStartPosition(uint2 sp) { windowDesc.patchPosition = sp; };
 
 private:
     // Implementation of Window::ICallbacks
