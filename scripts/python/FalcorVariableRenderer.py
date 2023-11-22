@@ -7,7 +7,7 @@ import numpy as np
 import time
 import json
 import math
-import tonemap
+from tonemap import *
 def sphereSample_uniform(u, v):
     phi = v * 2.0 * math.pi;
     cosTheta = 1.0 - u * 2;
@@ -30,12 +30,12 @@ def setup_renderpass(testbed):
     render_graph.mark_output("AccumulatePass.output")
     testbed.render_graph = render_graph
 class FalcorVariableRenderer:
-    def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.Vulkan, deviceID = 4):
+    def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.Vulkan, deviceID = 2):
         self.device = falcor.Device(type=deviceType, gpu=deviceID)
-        self.tomemap_type = tonemap_type
+        self.tonemap_type = tonemap_type
         self.width = 128
         self.height = 128
-        self.resolution = falcor.uint2(160,160)
+        self.resolution = falcor.uint2(1920,1080)
         self.startPosition = falcor.uint2(0,0)
         self.renderer = falcor.Testbed(width=self.width, height=self.height, position = self.startPosition,ow =self.resolution ,create_window=False, device=self.device)
         self.renderer.setSpp(400)
@@ -52,11 +52,13 @@ class FalcorVariableRenderer:
         self.variables = {}
         self.min_bounds = {}
         self.len_bounds = {}
+        self.totalPara = 0
     def load_config(self,variableFile):
-        print(variableFile)
+        self.totalPara = 0
         with open(variableFile, encoding='utf-8', errors='ignore') as json_data:
             self.vb = json.load(json_data, strict=False)
         for i,value in self.vb.items():
+            self.totalPara  = self.totalPara  + len(value[0])
             self.variables[i] = len(value[0])
             self.min_bounds[i] = np.array(value[0])
             self.len_bounds[i] = np.array(value[1]) - self.min_bounds[i]
@@ -70,7 +72,6 @@ class FalcorVariableRenderer:
 
         self.scene = self.renderer.scene
         self.aabb = self.renderer.getSceneBound()
-        print(self.aabb)
         self.sensor = self.scene.camera
         self.sensor.nearPlane = 0.00001
         self.sensor.farPlane = 10000000
@@ -381,11 +382,15 @@ class FalcorVariableRenderer:
         #Call the scene's integrator to render the loaded scene
 
         self.renderer.run()
-        buffers = []
-        gt = []
         abuffer = self.renderer.getEmissive(falcor.uint3(self.height, self.width, 19))
         abuffer = abuffer.reshape((self.height,self.width,19))
-        gt = abuffer[:,:,0:3]
-        buffer = abuffer[:,:,3:19]
+        if self.tonemap_type == 'log1p':
+            tonemap = log1p
+        elif self.tonemap_type== 'n2n':
+            tonemap = n2n
 
-        return buffers, gt, custom_values
+        gt = abuffer[:,:,0:3]
+        gt = tonemap(gt)
+        buffer = abuffer[:,:,3:19]
+        buffer[:,:,3:6] = tonemap(buffer[:,:,3:6])
+        return buffer, gt, custom_values

@@ -37,16 +37,17 @@ def print_network(net):
 
 
 def stack_inputs(buffers, variables, custom_values):
-    resolution = (buffers[0].shape[0], buffers[0].shape[1])
-
+    resolution = (buffers.shape[0], buffers.shape[1])
+    print(variables)
+    print(custom_values)
     variable_buffers = []
-
-    for i in range(len(variables)):
-        for j in range(variables[i].num_parameters()):
+    i = 0
+    for key in variables:
+        for j in range(variables[key]):
             variable_buffers.append(np.full(resolution, custom_values[i][j], dtype=np.float32))
-
-
-    inputs = np.dstack((*buffers, *variable_buffers))
+        i = i + 1
+    print(buffers.shape)
+    inputs = np.dstack((buffers, *variable_buffers))
 
     return inputs
 

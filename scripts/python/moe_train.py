@@ -7,6 +7,8 @@ from utils import *
 from generators.pixel_generator import PixelGenerator
 from generators.positional_pixel_generator import PositionalPixelGenerator
 from generators.moe_positional_pixel_generator import MoE
+from generators.moe_positional_pixel_generator import MoE_Dispatch
+from generators.moe_positional_pixel_generator import MoE_Dispatch_Encoder
 from losses import *
 from train.samplers.mcmc_sampler import MarkovChainSampler
 
@@ -23,6 +25,7 @@ from multiprocessing import Pool
 import pynvml
 pynvml.nvmlInit()
 alpha = 0.5 # mix
+load_weight = 1
 def show_gpu_infomation(id):
     handle = pynvml.nvmlDeviceGetHandleByIndex(id) # 指定显卡号
     meminfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
@@ -30,12 +33,13 @@ def show_gpu_infomation(id):
 
 def initialize_markov_chain(patch, scene_path,config_path, tonemap):
     global renderer
-    renderer = FalcorVariableRenderer(tonemap_type=tonemap,deviceType = falcor.DeviceType.Vulkan,deviceID = 2)
+    renderer = FalcorVariableRenderer(tonemap_type=tonemap,deviceType = falcor.DeviceType.Vulkan,deviceID = 3)
     renderer.load_scene(scene_path)
     renderer.load_config(config_path)
     global patch_range, patch_size
 
     patch_size = patch
+
 
 
 def run_markov_chain(mc_sampler, resolution):
@@ -90,7 +94,6 @@ def calculate_test_loss(path,number):
     inputs = []
     gts = []
     for i in range(number):
-   
         custom_values = dict()
         data = np.load(path + '/' + str(i) + 'sample.npz')
         input_buffer = []
@@ -111,20 +114,25 @@ def calculate_test_loss(path,number):
     lpLossSum = 0
     l1LossSum = 0
     smapeLossSum = 0
+    if conf.debug:
+        print("beforce test calculate gpu cost:")
+        print(show_gpu_infomation(1))
     for i in range(lenth):
+        print(show_gpu_infomation(1))
         # show_gpu_infomation(1)
-        
         optimizer.zero_grad()
-        outputs = model(inputs[i].to(conf.device))
-
-        lpLoss,maLp = LP(outputs, gts[i].to(conf.device))
+        outputs = model(inputs[i].to(gpu))
+        if conf.debug:
+            print("after model train: ")
+            print(show_gpu_infomation(1))
+        lpLoss,maLp = LP(outputs, gts[i].to(gpu))
         lpLoss = lpLoss.item()
        
         
-        l1Loss,maL1 = L1(outputs, gts[i].to(conf.device))
+        l1Loss,maL1 = L1(outputs, gts[i].to(gpu))
         l1Loss = l1Loss.item()
         
-        smapeLoss,maS = SMAPE(outputs, gts[i].to(conf.device))
+        smapeLoss,maS = SMAPE(outputs, gts[i].to(gpu))
         smapeLoss = smapeLoss.item()
         if conf.debug:
             print("TestLPLoss : " + str(lpLoss))
@@ -181,6 +189,7 @@ def generate_samples(pool, device):
             # Terminate thread pool
             pool.close()
             pool.join()
+            enoki.cuda_malloc_trim()
             return []
     else:
         mc_results = mc_results.get()
@@ -198,6 +207,11 @@ def generate_samples(pool, device):
                 optimizer.zero_grad(set_to_none=True)
                 proposed_result = model(proposed_inputs.to(device))
                 proposed_loss,max_loss = criterion(proposed_result, proposed_gt.to(device))
+                if conf.arch == "pmoe" or conf.arch =="moe" or conf.arch=="pmoeE":
+                    print("Moe Loss:")
+                    print(proposed_loss)
+                    print(model.balanced_loss)
+                    proposed_loss = proposed_loss + model.balanced_loss * load_weight
                 proposed_loss.backward()
                 proposed_grad = compute_adam_grad_norm_reset(optimizer)
                 proposed_metric = proposed_grad * metric_calculate(proposed_result,proposed_gt.to(device))
@@ -217,6 +231,11 @@ def generate_samples(pool, device):
                 optimizer.zero_grad(set_to_none=True)
                 proposed_result = model(proposed_inputs.to(device))
                 proposed_loss,max_loss = criterion(proposed_result, proposed_gt.to(device))
+                if conf.arch == "pmoe" or conf.arch =="moe" or conf.arch=="pmoeE":
+                    print("Moe Loss:")
+                    print(proposed_loss)
+                    print(model.balanced_loss)
+                    proposed_loss = proposed_loss + model.balanced_loss * load_weight
                 proposed_loss.backward()
                 proposed_grad = compute_adam_grad_norm_reset(optimizer)
                 proposed_metric = proposed_grad * metric_calculate(proposed_result,proposed_gt.to(device))
@@ -225,6 +244,11 @@ def generate_samples(pool, device):
                 current_inputs, current_gt = samples[mc_samplers[k].current_sample_id]
                 current_result = model(current_inputs.to(device))
                 current_loss,max_loss = criterion(current_result, current_gt.to(device))
+                if conf.arch == "pmoe" or conf.arch =="moe" or conf.arch=="pmoeE":
+                    print("Moe Loss:")
+                    print(current_loss)
+                    print(model.balanced_loss)
+                    current_loss = current_loss + model.balanced_loss * load_weight
                 current_loss.backward()
                 current_grad = compute_adam_grad_norm_reset(optimizer)
                 current_metric = current_grad * metric_calculate(current_result,current_gt.to(device))
@@ -293,7 +317,7 @@ if __name__ == '__main__':
 
     # Directories
     conf.add('--scene_path', required=True, help='Path to the scene to be trained on')
-    conf.add('--config_path', required=True, help='Path to the scene config to be trained on')
+    conf.add('--config_path', required=True, help='Path to the scene to be trained on')
     conf.add('--models_dir', default='./models', help='Path to models directory')
     conf.add('--log_dir', default='./runs/', help='Path to tensorboard logging directory')
     conf.add('--validation_dataset_dir', help='Path to training dataset directory')
@@ -308,15 +332,17 @@ if __name__ == '__main__':
     # Patch based rendering parameters
     conf.add('--num_patches', type=int, default=16, help='Number of Markov Chains')
     conf.add('--num_threads', type=int, default=4, help='Number of parallel threads')
-    conf.add('--timeout', type=int, default=40, help='Timeout for parallel rendering')
+    conf.add('--timeout', type=int, default=400, help='Timeout for parallel rendering')
     conf.add('--patch_size', type=int, default=32, help='Size of patch to be rendered')
 
     # Generators (default: Positional Pixel Generator)
-    conf.add('--arch', default='ppixel', choices=['pixel', 'ppixel'])
+    conf.add('--arch', default='ppixel', choices=['pixel', 'ppixel', 'pmoe', 'pmoeE', 'moe'])
     conf.add('--loss', default='dssim_l1', choices=['dssim_l1'])
     conf.add('--tonemap', default='log1p', choices=['log1p'])
     conf.add('--hidden_features', type=int, default=512, help='Number of hidden features for the generator')
     conf.add('--hidden_layers', type=int, default=8, help='Number of hidden layers for the generator')
+    conf.add('--encoder_hidden_layers', type=int, default=2, help='Number of hidden layers for the generator')
+    conf.add('--decoder_hidden_layers', type=int, default=4, help='Number of hidden layers for the generator')
     conf.add('--learning_rate', type=float, default=1e-4, help='Learning rate to use for training')
 
     # Ablations
@@ -334,7 +360,7 @@ if __name__ == '__main__':
     conf.add('--seed', type=int, default=0, help='Seed for random numbers generator')
     conf.add('--mutation_size_small', type=float, default=1.0 / 25.0, help='MCMC small mutation size')
     conf.add('--mutation_size_large', type=float, default=1.0 / 20.0, help='MCMC large mutation size')
-    conf.add('--device', type=str, default='cuda', help='Device to use for Pytorch training')
+    conf.add('--device', type=int, default=0, help='Device to use for Pytorch training')
     conf.add('--summary_freq', type=int, default=50, help='Frequency at which to display results')
     conf.add('--resume', type=str, default='', help='Resume checkpoint path from which to start training')
     # sht added 
@@ -344,6 +370,8 @@ if __name__ == '__main__':
     conf.add('--debug', action='store_true', help='whether to unenable reused module')
     conf.add('--metric',default='L1',choices=['L1','RelativeError'])
     conf.add('--addMax',action='store_true',help='whether to add max * alpha to metric')
+    conf.add('--expertNum',type=int, default=8, help='how many son you need')
+    conf.add('--gateK',type=int, default=2, help='how many gate you choice')
     conf = conf.parse_args()
 
     # Set random seeds
@@ -360,21 +388,28 @@ if __name__ == '__main__':
 
     if not os.path.exists(models_dir):
         os.makedirs(models_dir)
-
+        
     # Create renderer
-    renderer = FalcorVariableRenderer(tonemap_type=conf.tonemap,deviceType = falcor.DeviceType.Vulkan,deviceID = 2)
+    renderer = FalcorVariableRenderer(tonemap_type=conf.tonemap,deviceType = falcor.DeviceType.Vulkan,deviceID = 3)
 
     # Load scene
     renderer.load_scene(conf.scene_path)
     renderer.load_config(conf.config_path)
 
     resolution = [renderer.width,renderer.height]
+    
+    # Validation set
+    if conf.validation_samples > 0:
+        validation_dataset = ConfigurableDataset(conf.validation_dataset_dir, renderer.variables_ids, data_samples=conf.validation_samples)
+        validation_loader = torch.utils.data.DataLoader(validation_dataset, num_workers=0, batch_size=conf.batch_size)
+
 
     mc_samplers = []
     ## sht added 
     mc_uniform_samplers = []
     for i in range(conf.num_patches*uniform_multiple_variable):
         mc_uniform_samplers.append(MarkovChainSampler(large_step_prob=1.0, mutation_size_large=conf.mutation_size_large, mutation_size_small=conf.mutation_size_small, dimensions=renderer.totalPara + 2))
+    
     
     large_step_prob = 0.3
 
@@ -383,12 +418,12 @@ if __name__ == '__main__':
 
     # Initialize Markov Chain samplers
     for i in range(conf.num_patches):
-        mc_samplers.append(MarkovChainSampler(large_step_prob=large_step_prob, mutation_size_large=conf.mutation_size_large, mutation_size_small=conf.mutation_size_small, dimensions=renderer.totalPara+ 2))
+        mc_samplers.append(MarkovChainSampler(large_step_prob=large_step_prob, mutation_size_large=conf.mutation_size_large, mutation_size_small=conf.mutation_size_small, dimensions=renderer.totalPara + 2))
    
     training_samples = conf.training_samples
 
     # Losses and optimizer
-    if conf.loss == 'dssim_l1': 
+    if conf.loss == 'dssim_l1':
         criterion = DssimL1Loss()
     if conf.loss == 'dssim_smape':
         criterion = DssimSMAPELoss()
@@ -400,16 +435,33 @@ if __name__ == '__main__':
     elif conf.arch == 'ppixel':
         print('Using Positional Pixel generator with ADAM and learning rate ' + str(conf.learning_rate))
         model = PositionalPixelGenerator(buffers_features=13, variables_features=renderer.totalPara, hidden_features=conf.hidden_features, hidden_layers=conf.hidden_layers)
+    elif conf.arch == "moe":
+        print("Using MOE Positional Pixel generator with ADAM and learning rate" + str(conf.learning_rate))
+        #model = MoE(conf.expertNum,buffers_features=13,variables_features=renderer.totalPara,hidden_features=conf.hidden_features,hidden_layers=conf.hidden_layers,k = conf.gateK)
+        model = MoE(conf.expertNum,buffers_features=13,variables_features=renderer.totalPara,hidden_features=conf.hidden_features,hidden_layers=conf.hidden_layers,k = conf.gateK)
     elif conf.arch == 'pmoe':
         print("Using MOE Positional Pixel generator with ADAM and learning rate" + str(conf.learning_rate))
-        model = MoE(12,buffers_features=13,variables_features=renderer.totalPara,hidden_features=conf.hidden_features,hidden_layers=conf.hidden_layers)
-    
-    
-    model.to(conf.device)
+        #model = MoE(conf.expertNum,buffers_features=13,variables_features=renderer.totalPara,hidden_features=conf.hidden_features,hidden_layers=conf.hidden_layers,k = conf.gateK)
+        model = MoE_Dispatch(conf.expertNum,buffers_features=13,variables_features=renderer.totalPara,hidden_features=conf.hidden_features,encoder_hidden_layers=conf.encoder_hidden_layers,decoder_hidden_layers=conf.decoder_hidden_layers,k = conf.gateK)
+    elif conf.arch == 'pmoeE':
+        print("Using MOE Positional Pixel generator with ADAM and learning rate" + str(conf.learning_rate))
+        #model = MoE(conf.expertNum,buffers_features=13,variables_features=renderer.totalPara,hidden_features=conf.hidden_features,hidden_layers=conf.hidden_layers,k = conf.gateK)
+        model = MoE_Dispatch_Encoder(conf.expertNum,buffers_features=13,variables_features=renderer.totalPara,hidden_features=conf.hidden_features,encoder_hidden_layers=conf.encoder_hidden_layers,decoder_hidden_layers=conf.decoder_hidden_layers,k = conf.gateK) 
+    print(renderer.totalPara)
+    gpu = torch.device("cuda:" + str(conf.device))
+    model.to(gpu)
+    LP.to(gpu)
+    L1.to(gpu)
+    SMAPE.to(gpu)
+    if conf.debug:
+        print("gpu cost ")
+        print(show_gpu_infomation(1))
     optimizer = optim.Adam(model.parameters(), lr=conf.learning_rate)
 
     if conf.tensorboard:
-        writer = SummaryWriter(log_dir + time.strftime('%Y%m%d-%H%M%S'))
+        writer = SummaryWriter(log_dir + "_" + conf.arch + "_" + str(conf.expertNum)\
+            + "_" +str(conf.hidden_features) + "_"  + str(conf.hidden_layers)\
+            + "_" + str(conf.gateK) + time.strftime('%Y%m%d-%H%M%S'))
     
 
     # Define model directory
@@ -444,7 +496,9 @@ if __name__ == '__main__':
     epoch_train_losses = []
     epoch_validation_losses = []
 
-    pool = Pool(initializer=initialize_markov_chain, initargs=[conf.patch_size, conf.scene_path,conf.config_path, conf.tonemap], processes=conf.num_threads)
+    pool = Pool(initializer=initialize_markov_chain, initargs=[conf.patch_size, conf.scene_path, conf.tonemap], processes=conf.num_threads, maxtasksperchild=100)
+    print('Found ' + str(renderer.totalPara) + ' variable scene parameters.')
+    print('Started training..')
 
     # Initialize sample reuse parameters
     samples = []
@@ -470,13 +524,16 @@ if __name__ == '__main__':
     total = 0;
     
     
+    if conf.debug:
+        print("before training gpu cost")
+        print(show_gpu_infomation(1))
     
     for epoch in range(conf.epochs):# 每次迭代epoch 清空mcstates和runing_loss 渐进像素
         #calculate_test_loss(conf.test_path, conf.test_sample)
         running_loss = 0.0
         mc_states = []
         i = 0
-
+        load_weight = load_weight * 0.98
         # Increase resolution every epoch
         resolution = [min(conf.max_res, res + conf.res_step) for res in resolution]
 
@@ -492,12 +549,12 @@ if __name__ == '__main__':
             is_reused = False
             # Always generate the first few samples
             if total_samples < conf.bootstrap_samples:
-                current_sample_indices = generate_samples(pool, conf.device)
-                #generate_uniform_samples(pool,conf.device)
+                current_sample_indices = generate_samples(pool, gpu)
+                #generate_uniform_samples(pool,gpu)
                 # If the sample generation crashed
                 if len(current_sample_indices) == 0:
                     # Restart thread pool
-                    pool = Pool(initializer=initialize_markov_chain, initargs=[conf.patch_size, conf.scene_path,conf.config_path, conf.tonemap], processes=conf.num_threads, maxtasksperchild=100)
+                    pool = Pool(initializer=initialize_markov_chain, initargs=[conf.patch_size, conf.scene_path, conf.tonemap], processes=conf.num_threads, maxtasksperchild=100)
                     continue
 
                 is_reused = False
@@ -541,8 +598,8 @@ if __name__ == '__main__':
                     is_reused = True
                 # Case generate
                 else:
-                    current_sample_indices = generate_samples(pool, conf.device)
-                    # generate_uniform_samples(pool,conf.device)
+                    current_sample_indices = generate_samples(pool, gpu)
+                    # generate_uniform_samples(pool,gpu)
                     # If the sample generation crashed
                     if len(current_sample_indices) == 0:
                         # Restart thread pool
@@ -573,9 +630,14 @@ if __name__ == '__main__':
             # Training step
             print("start model training")
             optimizer.zero_grad()
-            outputs = model(inputs.to(conf.device))
-            loss,max_loss = criterion(outputs, gt.to(conf.device))
-            metricFunction(outputs,gt.to(conf.device))
+            outputs = model(inputs.to(gpu))
+            loss,max_loss = criterion(outputs, gt.to(gpu))
+            if conf.arch == "pmoe" or conf.arch =="moe" or conf.arch=="pmoeE":
+                print("Moe Loss:")
+                print(loss)
+                print(model.balanced_loss)
+                loss = loss + model.balanced_loss * load_weight
+            metricFunction(outputs,gt.to(gpu))
             loss.backward()
             optimizer.step()
             # Update weights based on loss
@@ -670,8 +732,8 @@ if __name__ == '__main__':
                 for i, data in enumerate(validation_loader, 0):
                     inputs, gt = data
 
-                    outputs = model(inputs.to(conf.device)).cpu()
-                    loss = criterion(outputs.to(conf.device), gt.to(conf.device))
+                    outputs = model(inputs.to(gpu)).cpu()
+                    loss = criterion(outputs.to(gpu), gt.to(gpu))
 
                     running_loss += loss.item()
 
