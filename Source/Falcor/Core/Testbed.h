@@ -151,6 +151,7 @@ public:
     void setResolution(uint2 ow) { windowDesc.originWindow = ow;};
     void setPatchSize(uint2 ps) { windowDesc.width = ps.x, windowDesc.height = ps.y; };
     void setStartPosition(uint2 sp) { windowDesc.patchPosition = sp; };
+    void updateNodeTransform(uint32_t nodeID, const Transform& transform);
 
 private:
     // Implementation of Window::ICallbacks

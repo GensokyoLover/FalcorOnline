@@ -189,19 +189,115 @@ namespace Falcor
             mLocalMatrices[i] = mpScene->mSceneGraph[i].transform;
         }
     }
+    void AnimationController::updateDynamicMeshPreGlobalMatrix()
+    {
+        const auto& sceneGraph = mpScene->mSceneGraph;
 
+        for (size_t i = 0; i < mGlobalMatrices.size(); i++)
+        {
+            // Propagate matrix change flag to children.
+            if (sceneGraph[i].parent != NodeID::Invalid())
+            {
+                mMatricesChanged[i] = mMatricesChanged[i] || mMatricesChanged[sceneGraph[i].parent.get()];
+            }
+
+            if (!mMatricesChanged[i])
+                continue;
+
+            mGlobalMatrices[i] = mLocalMatrices[i]; // 全局后置，局部先行
+
+            if (mpScene->mSceneGraph[i].parent != NodeID::Invalid())
+            {
+                mGlobalMatrices[i] = mul(mGlobalMatrices[sceneGraph[i].parent.get()] ,mGlobalMatrices[i]);
+            }
+
+            mInvTransposeGlobalMatrices[i] = transpose(inverse(mGlobalMatrices[i]));
+        }
+    }
+    void AnimationController::uploadDynamicMeshGlobalMatrix()
+    {
+        for (size_t i = 0; i < mGlobalMatrices.size();)
+        {
+            // Detect ranges of consecutive matrices that have all changed or not.
+            size_t offset = i;
+            bool changed = mMatricesChanged[i];
+            while (i < mGlobalMatrices.size() && mMatricesChanged[i] == changed)
+                ++i;
+
+            // Upload range of changed matrices.
+            if (changed)
+            {
+                size_t count = i - offset;
+                mpWorldMatricesBuffer->setBlob(&mGlobalMatrices[offset], offset * sizeof(float4x4), count * sizeof(float4x4));
+                mpInvTransposeWorldMatricesBuffer->setBlob(
+                    &mInvTransposeGlobalMatrices[offset], offset * sizeof(float4x4), count * sizeof(float4x4)
+                );
+            }
+        }
+    }
     bool AnimationController::animate(RenderContext* pRenderContext, double currentTime)
     {
         FALCOR_PROFILE(pRenderContext, "animate");
-
         std::fill(mMatricesChanged.begin(), mMatricesChanged.end(), false);
-
         // Check for edited scene nodes and update local matrices.
-        const auto& sceneGraph = mpScene->mSceneGraph;
+        auto& sceneGraph = mpScene->mSceneGraph;
+        auto& groupToVirtualNode = mpScene->groupToVirtualNode;
         bool edited = false;
+        if (!initVirtualNode)
+        {
+            for (size_t i = 0; i < sceneGraph.size(); ++i)
+            {
+                NodeID id{i};
+                auto& node = sceneGraph[i];
+
+                if (fileName2Group.find(node.meshName) != fileName2Group.end())
+                {
+                    std::string groupName = fileName2Group[node.meshName];
+                    std::cout << node.meshName << std::endl;
+                    groupToNodeID[groupName].push_back(i);
+                    groupToVirtualNode[groupName] =
+                        virtualNode(groupName, NodeID(0), float4x4(), float4x4(), float4x4(), true, groupName);
+                }
+            }
+
+            initVirtualNode = true;
+        }
+
+        for (auto& iter : groupToVirtualNode)
+        {
+            auto& node = iter.second;
+            std::string groupName = iter.first;
+            std::vector<uint32_t>& groupVec = groupToNodeID[groupName];
+            if (node.extra.getDirty() == true)
+            {
+                printf("TTTTTTT\n");
+                for (int j = 0; j < groupVec.size(); j++)
+                {
+                    auto& objectNode = sceneGraph[groupVec[j]];
+                    objectNode.extra = node.extra;
+                    std::cout << "nodeID " << groupVec[j] << std::endl;
+                }
+                node.extra.setDirty(false);
+            }
+        }
+
         for (size_t i = 0; i < sceneGraph.size(); ++i)
         {
-            if (mNodesEdited[i])
+            NodeID id{i};
+            auto& node = sceneGraph[i];
+            if (node.extra.getDirty() == true)
+            {
+                printf("TTTTTTT\n");
+            }
+            if (node.extra.getDirty() == true)
+            {
+                sceneGraph[i].transform = mul(node.extra.getMatrix(), node.origin);
+                mLocalMatrices[i] = sceneGraph[i].transform;
+                mNodesEdited[i] = false;
+                mMatricesChanged[i] = true;
+                edited = true;
+            }
+            else if (mNodesEdited[i])
             {
                 mLocalMatrices[i] = sceneGraph[i].transform;
                 mNodesEdited[i] = false;
@@ -218,7 +314,6 @@ namespace Falcor
         // including transformation matrices, dynamic vertex data etc.
         if (mFirstUpdate || mEnabled != mPrevEnabled)
         {
-            std::fill(mMatricesChanged.begin(), mMatricesChanged.end(), true);
             initLocalMatrices();
             if (mEnabled)
             {
@@ -256,6 +351,12 @@ namespace Falcor
 
         // Perform incremental update.
         // This updates all animated matrices and dynamic vertex data.
+        if (edited)
+        {
+            updateDynamicMeshPreGlobalMatrix();
+            uploadDynamicMeshGlobalMatrix();
+        }
+
         if (edited || (mEnabled && (time != mTime || mTime != mPrevTime)))
         {
             if (edited || hasAnimations())
@@ -483,6 +584,63 @@ namespace Falcor
             if (auto animGroup = widget.group(animation->getName()))
             {
                 animation->renderUI(animGroup);
+            }
+        }
+        int i = 0;
+
+        auto& sceneGraph = mpScene->mSceneGraph;
+        for (size_t i = 0; i < sceneGraph.size(); ++i)
+        {
+            NodeID id{i};
+            auto& node = sceneGraph[i];
+            if (true)
+            {
+                Transform& t = node.extra;
+                float3 translate = t.getTranslation();
+                float3 rotation = t.getRotationEuler();
+                float3 scaling = t.getScaling();
+                std::string post = std::to_string(i);
+                std::string pre = "Translation" ;
+                if (widget.var((pre + post).c_str(), translate, -FLT_MAX, FLT_MAX, 0.001f, false, "%.4f"))
+                {
+                    t.setTranslation(translate);
+                }
+
+                pre = "Rotation";
+                if (widget.var((pre + post).c_str(), rotation, -FLT_MAX, FLT_MAX, 0.001f, false, "%.4f"))
+                {
+                    t.setRotationEuler(rotation);
+                }
+
+                pre = "Scaling";
+                if (widget.var((pre + post).c_str(), scaling, -FLT_MAX, FLT_MAX, 0.001f, false, "%.4f"))
+                {
+                    t.setScaling(scaling);
+                }
+
+            }
+        }
+        auto& groupToVirtualNode = mpScene->groupToVirtualNode;
+        for (auto& iter : groupToVirtualNode)
+        {
+            auto& node = iter.second;
+            Transform& t = node.extra;
+            float3 translate = t.getTranslation();
+            std::string post = node.name;
+            std::string pre = "Translation";
+            if (auto group = widget.group(node.name))
+            {
+                if (widget.var((pre + post).c_str(), translate, -FLT_MAX, FLT_MAX, 0.001f, false, "%.4f"))
+                {
+                    t.setTranslation(translate);
+                    float3 trans = t.getTranslation();
+
+                    printf("%lf %lf %lf\n", trans.x, trans.y, trans.z);
+                    if (t.getDirty() == true)
+                    {
+                        printf("TRue\n");
+                    }
+                }
             }
         }
     }

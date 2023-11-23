@@ -30,12 +30,12 @@ def setup_renderpass(testbed):
     render_graph.mark_output("AccumulatePass.output")
     testbed.render_graph = render_graph
 class FalcorVariableRenderer:
-    def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.Vulkan, deviceID = 4):
+    def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.D3D12, deviceID = 0):
         self.device = falcor.Device(type=deviceType, gpu=deviceID)
         self.tomemap_type = tonemap_type
-        self.width = 128
-        self.height = 128
-        self.resolution = falcor.uint2(160,160)
+        self.width = 1920
+        self.height = 1080
+        self.resolution = falcor.uint2(1920,1080)
         self.startPosition = falcor.uint2(0,0)
         self.renderer = falcor.Testbed(width=self.width, height=self.height, position = self.startPosition,ow =self.resolution ,create_window=False, device=self.device)
         self.renderer.setSpp(400)
@@ -52,14 +52,38 @@ class FalcorVariableRenderer:
         self.variables = {}
         self.min_bounds = {}
         self.len_bounds = {}
+        self.totalPara = 0
     def load_config(self,variableFile):
         print(variableFile)
+        self.totalPara = 0
         with open(variableFile, encoding='utf-8', errors='ignore') as json_data:
             self.vb = json.load(json_data, strict=False)
         for i,value in self.vb.items():
-            self.variables[i] = len(value[0])
-            self.min_bounds[i] = np.array(value[0])
-            self.len_bounds[i] = np.array(value[1]) - self.min_bounds[i]
+            if i == "sensor":
+                self.variables[i] = len(value[0])
+                self.totalPara =  self.totalPara +  len(value[0])
+                self.min_bounds[i] = np.array(value[0])
+                self.len_bounds[i] = np.array(value[1]) - self.min_bounds[i]
+            elif i == "shape":
+                for nodeid,nodevalue in value.items():
+                    for type,bound in nodevalue.items():
+                        key = "shape"+"_" + nodeid + "_" + type
+                        self.variables[key] = len(bound[0])
+                        self.totalPara = self.totalPara + len(bound[0])
+                        print(key)
+                        print(bound)
+                        self.min_bounds[key] = np.array(bound[0])
+                        self.len_bounds[key] = np.array(bound[1]) - self.min_bounds[key]
+            elif i == "material":
+                for nodeid,nodevalue in value.items():
+                    for type,bound in nodevalue.items():
+                        key = "material"+"_" + nodeid + "_" + type
+                        self.variables[key] = len(bound[0])
+                        self.totalPara = self.totalPara + len(bound[0])
+                        print(key)
+                        print(bound)
+                        self.min_bounds[key] = np.array(bound[0])
+                        self.len_bounds[key] = np.array(bound[1]) - self.min_bounds[key]
 
     def load_scene(self, scene_filename):
 
@@ -175,11 +199,16 @@ class FalcorVariableRenderer:
 
     def setup_scene(self, custom_values):
         print(custom_values)
+        preNodeid = None
+        preTransform = None
         for key in custom_values:
+            keyList = key.split("_")
+            print(keyList)
             print(self.min_bounds[key])
             print(self.len_bounds[key])
             finalvalue = self.min_bounds[key] + custom_values[key] * self.len_bounds[key]
-            if key == "sensor":
+            if keyList[0] == "sensor":
+                continue
                 pos = falcor.float3(finalvalue[0],finalvalue[1],finalvalue[2])
                 direction = sphereSample_uniform(finalvalue[3],finalvalue[4])
                 direction = falcor.float3(direction[0],direction[1],direction[2])
@@ -189,7 +218,27 @@ class FalcorVariableRenderer:
                 self.sensor.up = falcor.float3(0, 1, 0)
                 print(self.sensor.position)
                 print(self.sensor.target)
-
+            elif keyList[0] == "shape":
+                id = int(keyList[1])
+                transformType = keyList[2]
+                if id != preNodeid:
+                    preNodeid = id
+                    preTransform = falcor.Transform()
+                finalvalue = self.min_bounds[key] + custom_values[key] * self.len_bounds[key]
+                if transformType == "translate":
+                    preTransform.translation = falcor.float3(finalvalue)
+                if transformType == "rotate":
+                    print(preTransform.rotationEuler)
+                    preTransform.rotationEuler = falcor.float3(finalvalue)
+                if transformType == "scaling":
+                    preTransform.scaling = falcor.float3(finalvalue)
+                self.renderer.scene.updateNodeExtraTransform(id,preTransform)
+            elif keyList[0] == "material":
+                id = int(keyList[1])
+                materialType = keyList[2]
+                finalvalue = self.min_bounds[key] + custom_values[key] * self.len_bounds[key]
+                material = self.renderer.scene.getMaterial(1)
+                material.baseColor = falcor.float4(finalvalue[0],finalvalue[1],finalvalue[2],1)
             '''
             # Emitters
             if self.variables[i] in self.emitters:
@@ -375,9 +424,7 @@ class FalcorVariableRenderer:
 
         # Set up the scene for the given custom  values and check intersection
         custom_values = self.setup_scene(custom_values)
-        self.renderer.setPatchSize(falcor.uint2(self.width, self.height))
-        self.renderer.setResolution(self.resolution)
-        self.renderer.setStartPosition(self.startPosition)
+
         #Call the scene's integrator to render the loaded scene
 
         self.renderer.run()

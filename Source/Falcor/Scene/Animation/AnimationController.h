@@ -33,13 +33,40 @@
 #include "Core/Pass/ComputePass.h"
 #include "Utils/Math/Matrix.h"
 #include "Scene/SceneTypes.slang"
+#include <Scene/Transform.h>
 #include <memory>
 #include <vector>
 
 namespace Falcor
 {
     class Scene;
-
+struct virtualNode
+{
+    std::string name;
+    NodeID parent{NodeID::Invalid()};
+    float4x4 transform;
+    Transform extra;
+    float4x4 origin;
+    float4x4 meshBind;         ///< For skinned meshes. Mesh world space transform at bind time.
+    float4x4 localToBindSpace; ///< For bones. Skeleton to bind space transformation. AKA the inverse-bind transform.
+    bool isLeaf;
+    std::string meshName;
+    virtualNode() = default;
+    virtualNode(
+        const std::string& n,
+        NodeID p,
+        const float4x4& t,
+        const float4x4& mb,
+        const float4x4& l2b,
+        bool isleaf,
+        const std::string& str = ""
+    )
+        : name(n), parent(p), transform(t), meshBind(mb), localToBindSpace(l2b), isLeaf(isleaf), meshName(str)
+    {
+        origin = transform;
+        extra.setDirty(false);
+    };
+};
     class FALCOR_API AnimationController
     {
     public:
@@ -141,7 +168,9 @@ namespace Falcor
         /** Get the total GPU memory usage in bytes.
         */
         uint64_t getMemoryUsageInBytes() const;
-
+        void updateDynamicMeshPreGlobalMatrix();
+        void uploadDynamicMeshGlobalMatrix();
+        void initTransformByBounds();
     private:
         friend class SceneBuilder;
         friend class Scene;
@@ -198,5 +227,8 @@ namespace Falcor
 
         // Animated vertex caches
         std::unique_ptr<AnimatedVertexCache> mpVertexCache;
+        std::map<std::string, std::string> fileName2Group;
+        std::map<std::string, std::vector<uint32_t>> groupToNodeID;
+        bool initVirtualNode = false;
     };
 }

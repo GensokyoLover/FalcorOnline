@@ -216,6 +216,25 @@ private:
         uint32_t width = 0,
         uint32_t height = 100
     );
+    bool addVecVarHelperPlus(
+        const char label[],
+        float3& var,
+        ImGuiDataType_ imguiType,
+        float3& minVal,
+        float3& maxVal,
+        float step,
+        bool sameLine,
+        const char* displayFormat
+    )
+    {
+        ImGui::PushItemWidth(200);
+        if (sameLine)
+            ImGui::SameLine();
+        bool b = ImGui::DragScalarN(label, imguiType, &var, var.length(), step, &minVal, &maxVal, displayFormat, true);
+        var = clamp(var, minVal, maxVal);
+        ImGui::PopItemWidth();
+        return b;
+    }
 };
 
 GuiImpl::GuiImpl(ref<Device> pDevice, float scaleFactor) : mpDevice(pDevice), mScaleFactor(scaleFactor)
@@ -1514,14 +1533,15 @@ bool Gui::Widgets::var(const char label[], T& var, T minVal, T maxVal, float ste
     return mpGui ? mpGui->mpWrapper->addScalarVar(label, var, minVal, maxVal, step, sameLine, displayFormat) : false;
 }
 
-#define add_scalarVar_type(TypeName) \
-    template FALCOR_API bool Gui::Widgets::var<TypeName>(const char[], TypeName&, TypeName, TypeName, float, bool, const char*)
 
-add_scalarVar_type(int32_t);
-add_scalarVar_type(uint32_t);
-add_scalarVar_type(uint64_t);
-add_scalarVar_type(float);
-add_scalarVar_type(double);
+
+#define add_scalarVar_type(TypeName) template FALCOR_API bool Gui::Widgets::var<TypeName>(const char[], TypeName&, TypeName, TypeName, float, bool, const char*)
+
+    add_scalarVar_type(int32_t);
+    add_scalarVar_type(uint32_t);
+    add_scalarVar_type(uint64_t);
+    add_scalarVar_type(float);
+    add_scalarVar_type(double);
 
 #undef add_scalarVar_type
 
@@ -1557,7 +1577,19 @@ bool Gui::Widgets::var(
 {
     return mpGui ? mpGui->mpWrapper->addVecVar(label, var, minVal, maxVal, step, sameLine, displayFormat) : false;
 }
-
+bool Gui::Widgets::var_vec(
+    const char label[],
+    float3& var,
+    float3& minVal,
+    float3& maxVal,
+    float step,
+    bool sameLine,
+    const char* displayFormat
+)
+{
+    return mpGui ? mpGui->mpWrapper->addVecVarHelperPlus(label, var, ImGuiDataType_Float, minVal, maxVal, step, sameLine, displayFormat)
+                 : false;
+}
 #define add_vecVar_type(TypeName)               \
     template FALCOR_API bool Gui::Widgets::var< \
         TypeName>(const char[], TypeName&, typename TypeName::value_type, typename TypeName::value_type, float, bool, const char*)

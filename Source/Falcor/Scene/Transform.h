@@ -49,7 +49,7 @@ namespace Falcor
             RotateTranslateScale,
             TranslateRotateScale,
             TranslateScaleRotate,
-            Default = ScaleRotateTranslate
+            Default = ScaleRotateTranslate 
         };
 
         Transform();
@@ -80,7 +80,8 @@ namespace Falcor
         bool operator!=(const Transform& other) const { return !((*this) == other); }
 
         static CompositionOrder getInverseOrder(const CompositionOrder& order);
-
+        void setDirty(bool dirty) { mDirty = dirty; }
+        bool getDirty() { return mDirty; }
     private:
         float3 mTranslation = float3(0.f);
         float3 mScaling = float3(1.f);

@@ -30,6 +30,7 @@
 #include "SceneTypes.slang"
 #include "HitInfo.h"
 #include "Animation/Animation.h"
+#include "Utils/Math/MathHelpers.h"
 #include "Animation/AnimationController.h"
 #include "Displacement/DisplacementUpdateTask.slang"
 #include "Lights/Light.h"
@@ -292,12 +293,29 @@ namespace Falcor
         struct Node
         {
             Node() = default;
-            Node(const std::string& n, NodeID p, const float4x4& t, const float4x4& mb, const float4x4& l2b) : name(n), parent(p), transform(t), meshBind(mb), localToBindSpace(l2b) {};
+            Node(
+                const std::string& n,
+                NodeID p,
+                const float4x4& t,
+                const float4x4& mb,
+                const float4x4& l2b,
+                bool isleaf,
+                const std::string& str = ""
+            )
+                : name(n), parent(p), transform(t), meshBind(mb), localToBindSpace(l2b), isLeaf(isleaf), meshName(str)
+            {
+                origin = transform;
+                extra.setDirty(false);
+            };
             std::string name;
-            NodeID parent{ NodeID::Invalid() };
-            float4x4 transform;         ///< The node's transformation matrix.
-            float4x4 meshBind;          ///< For skinned meshes. Mesh world space transform at bind time.
-            float4x4 localToBindSpace;  ///< For bones. Skeleton to bind space transformation. AKA the inverse-bind transform.
+            NodeID parent{NodeID::Invalid()};
+            float4x4 transform; ///< The node's transformation matrix.
+            Transform extra;
+            float4x4 origin;
+            float4x4 meshBind;         ///< For skinned meshes. Mesh world space transform at bind time.
+            float4x4 localToBindSpace; ///< For bones. Skeleton to bind space transformation. AKA the inverse-bind transform.
+            bool isLeaf;
+            std::string meshName;
         };
 
         /** Full set of required data to create a scene object.
@@ -305,6 +323,8 @@ namespace Falcor
         */
         struct SceneData
         {
+            std::map<std::string, uint32_t> nameToNodeID; ///< Custom! MeshName to NodeID
+            std::map<std::string, uint32_t> nodeNameToNodeID;
             std::filesystem::path path;                             ///< Path of the asset file the scene was loaded from.
             RenderSettings renderSettings;                          ///< Render settings.
             std::vector<ref<Camera>> cameras;                       ///< List of cameras.
@@ -1013,7 +1033,7 @@ namespace Falcor
         /** Render the UI.
         */
         void renderUI(Gui::Widgets& widget);
-
+        void renderCustomButton(Gui::Widgets& widget);
         /** Get the scene's VAO for meshes.
             The default VAO uses 32-bit vertex indices. For meshes with 16-bit indices, use getMeshVao16() instead.
             \return VAO object or nullptr if no meshes using 32-bit indices.
@@ -1118,7 +1138,8 @@ namespace Falcor
         NodeID getParentNodeID(NodeID nodeID) const;
 
         std::string getScript(const std::string& sceneVar);
-
+        void updateNodeExtraTransformByName(const std::string& name, Transform transform);
+        void updateNodeExtraTransform(uint32_t nodeID, Transform transform);
     private:
         friend class AnimationController;
         friend class AnimatedVertexCache;
@@ -1383,7 +1404,7 @@ namespace Falcor
         std::map<RasterizerState::CullMode, ref<RasterizerState>> mFrontClockwiseRS;
         std::map<RasterizerState::CullMode, ref<RasterizerState>> mFrontCounterClockwiseRS;
         UpdateFlags mUpdates = UpdateFlags::All;
-        std::unique_ptr<AnimationController> mpAnimationController;
+        
 
         // Raytracing data
         UpdateMode mTlasUpdateMode = UpdateMode::Rebuild;   ///< How the TLAS should be updated when there are changes in the scene.
@@ -1455,8 +1476,23 @@ namespace Falcor
         bool mBlasDataValid = false;                        ///< Flag to indicate if the BLAS data is valid. This will be reset when geometry is changed.
         bool mRebuildBlas = true;                           ///< Flag to indicate BLASes need to be rebuilt.
 
+        std::map<std::string, uint32_t> meshNameToNodeID;
+        std::map<std::string, uint32_t> nodeNameToNodeID;
         std::filesystem::path mPath;
-        bool mFinalized = false;                            ///< True if scene is ready to be bound to the GPU.
+        bool mFinalized = false; ///< True if scene is ready to be bound to the GPU.
+        std::map<std::string, virtualNode> groupToVirtualNode;
+        std::map<std::string, std::string> fileName2Group;
+        std::map<int, std::string> nodeID2Group;
+        std::map<std::string, std::vector<uint32_t>> groupToNodeIDs;
+        std::map<std::string, Transform> groupTransformMat;
+
+        std::map<std::string, AABB> nameToBound;
+        std::map<std::string, AABB> nameToMaterialBound;
+        bool mBoundsInitialized = false;
+        std::map<std::string, int> materialExsit;
+
+    public:
+        std::unique_ptr<AnimationController> mpAnimationController;
     };
 
     FALCOR_ENUM_CLASS_OPERATORS(Scene::UpdateFlags);

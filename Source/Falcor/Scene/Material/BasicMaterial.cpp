@@ -499,6 +499,7 @@ namespace Falcor
     {
         if (any(mData.baseColor != (float16_t4)color))
         {
+            std::cout << "changed" << std::endl;
             mData.baseColor = (float16_t4)color;
             markUpdates(UpdateFlags::DataChanged);
             updateAlphaMode();

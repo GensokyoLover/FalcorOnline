@@ -350,7 +350,7 @@ namespace Falcor
         prepareSceneGraph();
         prepareMeshes();
         removeUnusedMeshes();
-        flattenStaticMeshInstances();
+        flattenStaticMeshInstances();   
         pretransformStaticMeshes();
         unifyTriangleWinding();
         optimizeSceneGraph();
@@ -430,6 +430,7 @@ namespace Falcor
         mesh.isFrontFaceCW = pTriangleMesh->getFrontFaceCW();
         mesh.pMaterial = pMaterial;
         mesh.isAnimated = isAnimated;
+        
 
         std::vector<float3> positions(vertices.size());
         std::vector<float3> normals(vertices.size());
@@ -1368,7 +1369,10 @@ namespace Falcor
         for (auto& mesh : mMeshes)
         {
             if (mesh.isAnimated)
+            {
+                mesh.isStatic = false;
                 mesh.prevVertexCount = mesh.staticVertexCount;
+            }
         }
         for (auto& cache : mSceneData.cachedMeshes)
         {
@@ -1584,6 +1588,7 @@ namespace Falcor
     {
         // This function optimizes the scene graph to flatten transform hierarchies
         // where possible by merging nodes.
+        return;
         if (is_set(mFlags, Flags::DontOptimizeGraph)) return;
 
         // Iterate over all nodes to collapse sub-trees of static nodes.
@@ -1661,7 +1666,7 @@ namespace Falcor
             // Skip instanced/animated/skinned meshes.
             FALCOR_ASSERT(!mesh.instances.empty());
             if (mesh.instances.size() > 1 || isNodeAnimated(*mesh.instances.begin()) || mesh.isDynamic()) continue;
-
+            std::cout << "go" << std::endl;
             FALCOR_ASSERT(mesh.skinningData.empty());
             mesh.isStatic = true;
 
@@ -1862,7 +1867,8 @@ namespace Falcor
             // Mark displaced meshes.
             const auto& pMaterial = mSceneData.pMaterials->getMaterial(mesh.materialId);
             if (pMaterial->isDisplaced()) mesh.isDisplaced = true;
-
+            if (mesh.isDynamic())
+                std::cout << "dynamic" << std::endl;
             if (mesh.isStatic && mesh.isDisplaced) staticDisplacedMeshes.push_back(meshID);
             else if (mesh.isStatic) staticMeshes.push_back(meshID);
             else if (!mesh.isStatic && mesh.isDisplaced) dynamicDisplacedMeshes.push_back(meshID);
@@ -2864,11 +2870,37 @@ namespace Falcor
     void SceneBuilder::createSceneGraph()
     {
         mSceneData.sceneGraph.resize(mSceneGraph.size());
-
         for (size_t i = 0; i < mSceneGraph.size(); i++)
         {
             FALCOR_ASSERT(mSceneGraph[i].parent.get() <= std::numeric_limits<uint32_t>::max());
-            mSceneData.sceneGraph[i] = Scene::Node(mSceneGraph[i].name, mSceneGraph[i].parent, mSceneGraph[i].transform, mSceneGraph[i].meshBind, mSceneGraph[i].localToBindPose);
+            bool isLeaf = false;
+            InternalNode& node = mSceneGraph[i];
+            if (mSceneGraph[i].children.size() == 0)
+                isLeaf = true;
+            std::string meshName = "";
+            std::cout << "mesh count " << node.meshes.size() << std::endl;
+            if (node.meshes.size() == 1)
+            {
+                auto& id = node.meshes[0];
+                meshName = mMeshes[id.get()].name;
+                std::cout << "Meshid: " << i << "--Name :" << meshName << std::endl;
+                mSceneData.nameToNodeID[meshName] = i;
+            }
+            mSceneData.nodeNameToNodeID[mSceneGraph[i].name] = i;
+            std::cout << "NodeName: " << mSceneGraph[i].name << " nodeID: " << i << std::endl;
+            if (mSceneGraph[i].parent.get() != NodeID::kInvalidID)
+            {
+                std::cout << "i have a father -> " << mSceneGraph[i].parent.get() << std::endl;
+            }
+            mSceneData.sceneGraph[i] = Scene::Node(
+                mSceneGraph[i].name,
+                mSceneGraph[i].parent,
+                mSceneGraph[i].transform,
+                mSceneGraph[i].meshBind,
+                mSceneGraph[i].localToBindPose,
+                isLeaf,
+                meshName
+            );
         }
     }
 

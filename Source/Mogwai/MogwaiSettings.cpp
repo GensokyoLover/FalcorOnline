@@ -204,13 +204,15 @@ namespace Mogwai
                 mpRenderer->setActiveGraph(activeGraph);
             }
 
-            if (w.button("Edit")) mpRenderer->openEditor();
+            /* if (w.button("Edit"))
+                mpRenderer->openEditor();
             if (w.button("Remove", true))
             {
                 mpRenderer->removeActiveGraph();
                 if (mpRenderer->mGraphs.empty()) return;
             }
-            w.separator();
+            w.separator();*/
+            mpRenderer->mpScene->renderCustomButton(w);
         }
 
         // Active graph output

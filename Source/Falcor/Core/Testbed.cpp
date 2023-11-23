@@ -642,6 +642,11 @@ void Testbed::captureOutput(const std::filesystem::path& path, uint32_t outputIn
         pTex->captureToFile(0, 0, path, fileformat, flags, false /* async */);
     }
 }
+void Testbed::updateNodeTransform(uint32_t nodeID, const Transform& transform)
+{
+    auto matrix = transform.getMatrix();
+    mpScene->updateNodeTransform(nodeID, matrix);
+}
 
 
 // added by sht
@@ -719,6 +724,7 @@ FALCOR_SCRIPT_BINDING(Testbed)
         "device"_a = nullptr
     );
     testbed.def("run", &Testbed::run);
+    testbed.def("updateNodeTransform", &Testbed::updateNodeTransform);
     testbed.def("frame", &Testbed::frame);
     testbed.def("setSpp", &Testbed::setSpp);
     testbed.def("setPatchSize", &Testbed::setPatchSize);

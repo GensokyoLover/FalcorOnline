@@ -354,7 +354,15 @@ public:
             bool sameLine = false,
             const char* displayFormat = nullptr
         );
-
+        bool var_vec(
+            const char label[],
+            float3& var,
+            float3& up,
+            float3& low,
+            float step = 0.001f,
+            bool sameLine = false,
+            const char* displayFormat = nullptr
+        );
         template<typename T, std::enable_if_t<!is_vector<T>::value, bool> = true>
         bool slider(
             const char label[],

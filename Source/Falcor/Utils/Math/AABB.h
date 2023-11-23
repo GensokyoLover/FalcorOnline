@@ -53,6 +53,7 @@ struct AABB
 
     /// Construct bounding box initialized to min/max point.
     AABB(const float3& pmin, const float3& pmax) : minPoint(pmin), maxPoint(pmax) {}
+    AABB(const float a, const float b) : minPoint(a), maxPoint(b) {}
 
     /// Set box to single point.
     void set(const float3& p) { minPoint = maxPoint = p; }

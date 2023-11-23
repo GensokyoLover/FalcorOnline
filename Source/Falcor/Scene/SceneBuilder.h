@@ -700,7 +700,7 @@ namespace Falcor
             NodeID  skeletonNodeID{ NodeID::Invalid() }; ///< Node ID of skeleton world transform. Forwarded from Mesh struct.
             bool use16BitIndices = false;           ///< True if the indices are in 16-bit format.
             bool hasSkinningData = false;           ///< True if mesh has skinned vertices.
-            bool isStatic = false;                  ///< True if mesh is non-instanced and static (not dynamic or animated).
+            bool isStatic = true;                  ///< True if mesh is non-instanced and static (not dynamic or animated).
             bool isFrontFaceCW = false;             ///< Indicate whether front-facing side has clockwise winding in object space.
             bool isDisplaced = false;               ///< True if mesh has displacement map.
             bool isAnimated = false;                ///< True if the mesh vertices can be modified during rendering (e.g., skinning or inverse rendering).

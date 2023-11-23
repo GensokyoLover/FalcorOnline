@@ -209,6 +209,13 @@ namespace Falcor
         mCustomPrimitiveDesc = std::move(sceneData.customPrimitiveDesc);
         mCustomPrimitiveAABBs = std::move(sceneData.customPrimitiveAABBs);
 
+        meshNameToNodeID = std::move(sceneData.nameToNodeID);
+        // for (auto i: meshNameToNodeID)
+        //     std::cout << "meshNameToNodeID:" << i.first << " " << i.second << std::endl;
+        nodeNameToNodeID = std::move(sceneData.nodeNameToNodeID);
+        // for (auto i: nodeNameToNodeID)
+        //     std::cout << "nodeNameToNodeID:" << i.first << " " << i.second << std::endl;
+
         // Setup additional resources.
         mFrontClockwiseRS[RasterizerState::CullMode::None] = RasterizerState::create(RasterizerState::Desc().setFrontCounterCW(false).setCullMode(RasterizerState::CullMode::None));
         mFrontClockwiseRS[RasterizerState::CullMode::Back] = RasterizerState::create(RasterizerState::Desc().setFrontCounterCW(false).setCullMode(RasterizerState::CullMode::Back));
@@ -1892,11 +1899,14 @@ namespace Falcor
         {
             mUpdates |= UpdateFlags::SceneGraphChanged;
             if (mpAnimationController->hasSkinnedMeshes()) mUpdates |= UpdateFlags::MeshesChanged;
-
+            int i = 0;
             for (const auto& inst : mGeometryInstanceData)
             {
+                i = i + 1;
+                std::cout << i << " " << inst.globalMatrixID << std::endl;
                 if (mpAnimationController->isMatrixChanged(NodeID{ inst.globalMatrixID }))
                 {
+                    std::cout << i << " "<<inst.globalMatrixID<< std::endl;
                     mUpdates |= UpdateFlags::GeometryMoved;
                 }
             }
@@ -1977,9 +1987,149 @@ namespace Falcor
         return mUpdates;
     }
 
+
+    void Scene::updateNodeExtraTransform(uint32_t nodeID, Transform transform)
+    {
+        FALCOR_ASSERT(nodeID < mSceneGraph.size());
+
+        Node& node = mSceneGraph[nodeID];
+        node.extra = transform;
+        node.transform = validateTransformMatrix(mul(node.extra.getMatrix(), node.origin));
+        mpAnimationController->setNodeEdited(nodeID);
+    }
+
+    void Scene::updateNodeExtraTransformByName(const std::string& name, Transform transform)
+    {
+        if (groupToNodeIDs.find(name) != groupToNodeIDs.end())
+        {
+            // std::cout << "[Falcor::Scene::updateNodeExtraTransformByName] group." << name << std::endl;
+            for (auto nodeID : groupToNodeIDs[name])
+            {
+                updateNodeExtraTransform(nodeID, transform);
+            }
+        }
+        else if (nodeNameToNodeID.find(name) != nodeNameToNodeID.end())
+        {
+            // std::cout << "[Falcor::Scene::updateNodeExtraTransformByName] single node object." << name << std::endl;
+            auto nodeID = nodeNameToNodeID[name];
+            updateNodeExtraTransform(nodeID, transform);
+        }
+        else
+        {
+            std::cout << "[Falcor::Scene::updateNodeExtraTransformByName] Failed to find transformation node." << std::endl;
+        }
+    }
+
+    void Scene::renderCustomButton(Gui::Widgets& widget)
+    {
+        using json = nlohmann::json;
+        // if (widget.button("Load"))
+        if (!mBoundsInitialized)
+        {
+            // std::filesystem::path path{u8"D:/Projects/NeGL/scenes/0728/living-room/variables-movable-single-gi.json"};
+            std::filesystem::path path{u8"D:/Projects/NeGL/scenes/0728/living-room/variables-movable-gi.json"};
+
+            // if (openFileDialog(Bitmap::getFileDialogFilters(ResourceFormat::Json), path))
+            {
+                std::map<std::string, AABB> boundCache;
+                std::ifstream ifs(path);
+                if (!ifs.good())
+                    return;
+                const json j = json::parse(ifs);
+                auto iter = j.find("random_bounds");
+                for (auto elem : (*iter).items())
+                {
+                    if (elem.value()[0].size() == 1)
+                    {
+                        boundCache[elem.key()] = AABB(elem.value()[0][0], elem.value()[1][0]);
+                    }
+                    else
+                    {
+                        boundCache[elem.key()] = AABB(
+                            float3(elem.value()[0][0], elem.value()[0][1], elem.value()[0][2]),
+                            float3(elem.value()[1][0], elem.value()[1][1], elem.value()[1][2])
+                        );
+                    }
+                }
+                iter = j.find("shapes");
+                for (auto elem : (*iter).items())
+                {
+                    for (auto elem2 : elem.value().items())
+                    {
+                        AABB bound;
+                        if (elem2.value().type() != json::value_t::string && elem2.value().type() != json::value_t::array)
+                            continue;
+                        if (elem2.key() == "rotation_angle")
+                        {
+                            bound = AABB(float3(0, (float)-1.57, 0), float3(0, (float)1.57, 0));
+                        }
+                        else if (elem2.value().type() == json::value_t::string)
+                        {
+                            bound = boundCache[elem2.value()];
+                        }
+                        else
+                        {
+                            // std::cout << elem2.key() << " " << elem2.value() << std::endl;
+                            if (elem2.value()[0].size() == 1)
+                            {
+                                bound = AABB(elem2.value()[0][0], elem2.value()[1][0]);
+                            }
+                            else
+                            {
+                                bound = AABB(
+                                    float3(elem2.value()[0][0], elem2.value()[0][1], elem2.value()[0][2]),
+                                    float3(elem2.value()[1][0], elem2.value()[1][1], elem2.value()[1][2])
+                                );
+                            }
+                        }
+                        nameToBound[elem.key() + "_" + elem2.key()] = bound;
+                    }
+                }
+                iter = j.find("materials");
+                for (auto elem : (*iter).items())
+                {
+                    for (auto elem2 : elem.value().items())
+                    {
+                        AABB bound;
+                        if (elem2.value().type() != json::value_t::string && elem2.value().type() != json::value_t::array)
+                            continue;
+                        if (elem2.key() == "roughness")
+                        {
+                            bound = AABB(float3(0, elem2.value()[0][0], 0), float3(0, elem2.value()[1][0], 0));
+                        }
+                        else if (elem2.value().type() == json::value_t::string)
+                        {
+                            bound = boundCache[elem2.value()];
+                        }
+                        else
+                        {
+                            // std::cout << elem2.key() << " " << elem2.value() << std::endl;
+                            if (elem2.value()[0].size() == 1)
+                            {
+                                bound = AABB(elem2.value()[0][0], elem2.value()[1][0]);
+                            }
+                            else
+                            {
+                                bound = AABB(
+                                    float3(elem2.value()[0][0], elem2.value()[0][1], elem2.value()[0][2]),
+                                    float3(elem2.value()[1][0], elem2.value()[1][1], elem2.value()[1][2])
+                                );
+                            }
+                        }
+
+                        nameToMaterialBound[elem.key() + "_" + elem2.key()] = bound;
+                        materialExsit[elem.key()] = 1;
+                    }
+                }
+            }
+            //mpAnimationController->initTransformByBounds();
+            mBoundsInitialized = true;
+        }
+    }
+
     void Scene::renderUI(Gui::Widgets& widget)
     {
-        if (mpAnimationController->hasAnimations())
+        if (true)
         {
             mpAnimationController->setEnabled(false);
             bool isEnabled = mpAnimationController->isEnabled();
@@ -4343,7 +4493,7 @@ namespace Falcor
         scene.def_property(kLoopAnimations.c_str(), &Scene::isLooped, &Scene::setIsLooped);
         scene.def_property(kRenderSettings.c_str(), pybind11::overload_cast<>(&Scene::getRenderSettings, pybind11::const_), &Scene::setRenderSettings);
         scene.def_property(kUpdateCallback.c_str(), &Scene::getUpdateCallback, &Scene::setUpdateCallback);
-
+        scene.def("updateNodeExtraTransform", &Scene::updateNodeExtraTransform, "id"_a, "translate"_a);
         scene.def(kSetEnvMap.c_str(), &Scene::loadEnvMap, "path"_a);
         scene.def(kGetLight.c_str(), &Scene::getLight, "index"_a);
         scene.def(kGetLight.c_str(), &Scene::getLightByName, "name"_a);
