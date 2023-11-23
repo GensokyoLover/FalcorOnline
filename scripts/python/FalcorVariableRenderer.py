@@ -7,7 +7,7 @@ import numpy as np
 import time
 import json
 import math
-import tonemap
+from tonemap import *
 def sphereSample_uniform(u, v):
     phi = v * 2.0 * math.pi;
     cosTheta = 1.0 - u * 2;
@@ -94,7 +94,6 @@ class FalcorVariableRenderer:
 
         self.scene = self.renderer.scene
         self.aabb = self.renderer.getSceneBound()
-        print(self.aabb)
         self.sensor = self.scene.camera
         self.sensor.nearPlane = 0.00001
         self.sensor.farPlane = 10000000
@@ -428,11 +427,15 @@ class FalcorVariableRenderer:
         #Call the scene's integrator to render the loaded scene
 
         self.renderer.run()
-        buffers = []
-        gt = []
         abuffer = self.renderer.getEmissive(falcor.uint3(self.height, self.width, 19))
         abuffer = abuffer.reshape((self.height,self.width,19))
-        gt = abuffer[:,:,0:3]
-        buffer = abuffer[:,:,3:19]
+        if self.tonemap_type == 'log1p':
+            tonemap = log1p
+        elif self.tonemap_type== 'n2n':
+            tonemap = n2n
 
-        return buffers, gt, custom_values
+        gt = abuffer[:,:,0:3]
+        gt = tonemap(gt)
+        buffer = abuffer[:,:,3:19]
+        buffer[:,:,3:6] = tonemap(buffer[:,:,3:6])
+        return buffer, gt, custom_values
