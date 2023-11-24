@@ -30,9 +30,9 @@ def setup_renderpass(testbed):
     render_graph.mark_output("AccumulatePass.output")
     testbed.render_graph = render_graph
 class FalcorVariableRenderer:
-    def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.D3D12, deviceID = 0):
+    def __init__(self, tonemap_type = "log1p",deviceType = falcor.DeviceType.Vulkan, deviceID = 0):
         self.device = falcor.Device(type=deviceType, gpu=deviceID)
-        self.tomemap_type = tonemap_type
+        self.tonemap_type = tonemap_type
         self.width = 1920
         self.height = 1080
         self.resolution = falcor.uint2(1920,1080)

@@ -87,9 +87,11 @@ void accumulateSingle(uint3 dispatchThreadId: SV_DispatchThreadID)
     const float4 curColor = gCurFrame[pixelPos];
     uint index = (pixelPos.x  + pixelPos.y * gResolution.x) * 19;
     float4 output;
+    float curWeight = 1.0 / (gAccumCount + 1);
+    float preWeight = gAccumCount/(gAccumCount + 1.0);
     if (gAccumulate)
     {
-        float curWeight = 1.0 / (gAccumCount + 1);
+
 
         if (gMovingAverageMode)
         {
@@ -119,26 +121,26 @@ void accumulateSingle(uint3 dispatchThreadId: SV_DispatchThreadID)
     bufferUav[index + 1] = output.y;
     bufferUav[index + 2] = output.z;
 
-    bufferUav[index + 3] = emissive[pixelPos].x;
-    bufferUav[index + 4] = emissive[pixelPos].y;
-    bufferUav[index + 5] = emissive[pixelPos].z;
+    bufferUav[index + 3] = preWeight * bufferUav[index + 3] + emissive[pixelPos].x;
+    bufferUav[index + 4] = preWeight * bufferUav[index + 4] + emissive[pixelPos].y;
+    bufferUav[index + 5] = preWeight * bufferUav[index + 5] + emissive[pixelPos].z;
 
-    bufferUav[index + 6] = normW[pixelPos].x;
-    bufferUav[index + 7] = normW[pixelPos].y;
-    bufferUav[index + 8] = normW[pixelPos].z;
+    bufferUav[index + 6] = preWeight * bufferUav[index + 6] + normW[pixelPos].x;
+    bufferUav[index + 7] = preWeight * bufferUav[index + 7] + normW[pixelPos].y;
+    bufferUav[index + 8] = preWeight * bufferUav[index + 8] + normW[pixelPos].z;
 
-    bufferUav[index + 9] = posW[pixelPos].x;
-    bufferUav[index + 10] = posW[pixelPos].y;
-    bufferUav[index + 11] = posW[pixelPos].z;
+    bufferUav[index + 9] = preWeight * bufferUav[index + 9] + posW[pixelPos].x;
+    bufferUav[index + 10] = preWeight * bufferUav[index + 10] + posW[pixelPos].y;
+    bufferUav[index + 11] = preWeight * bufferUav[index + 11] + posW[pixelPos].z;
 
-    bufferUav[index + 12] = viewW[pixelPos].x;
-    bufferUav[index + 13] = viewW[pixelPos].y;
-    bufferUav[index + 14] = viewW[pixelPos].z;
+    bufferUav[index + 12] = preWeight * bufferUav[index + 12] + viewW[pixelPos].x;
+    bufferUav[index + 13] = preWeight * bufferUav[index + 13] + viewW[pixelPos].y;
+    bufferUav[index + 14] = preWeight * bufferUav[index + 14] + viewW[pixelPos].z;
 
-    bufferUav[index + 15] = diffuseOpacity[pixelPos].x;
-    bufferUav[index + 16] = diffuseOpacity[pixelPos].y;
-    bufferUav[index + 17] = diffuseOpacity[pixelPos].z;
-    bufferUav[index + 18] = diffuseOpacity[pixelPos].w;
+    bufferUav[index + 15] = preWeight * bufferUav[index + 15] + diffuseOpacity[pixelPos].x;
+    bufferUav[index + 16] = preWeight * bufferUav[index + 16] + diffuseOpacity[pixelPos].y;
+    bufferUav[index + 17] = preWeight * bufferUav[index + 17] + diffuseOpacity[pixelPos].z;
+    bufferUav[index + 18] = preWeight * bufferUav[index + 18] + diffuseOpacity[pixelPos].w;
 
 
 }

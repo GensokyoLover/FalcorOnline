@@ -23,7 +23,7 @@ def main():
                        mutation_size_small=0.04, dimensions=17)
     start = time.time()
 
-    for i in range(10):
+    for i in range(100):
         resolution =falcor.uint2(300+ i * 10 , 300 + i * 10)
         variableDict = renderer.variables
         custom_values = {}
