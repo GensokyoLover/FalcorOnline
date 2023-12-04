@@ -68,6 +68,7 @@ public:
         uint32_t height = 1080;               ///< The height of the client area size.
         uint2 originWindow = uint2(1920,1080);
         uint2 patchPosition = uint2(0, 0);
+        uint2 factWindow = uint2(1920, 1080);
         std::string title = "Falcor Sample";  ///< Window title.
         WindowMode mode = WindowMode::Normal; ///< Window mode. In full screen mode, width and height will be ignored.
         bool resizableWindow = true;          ///< Allow the user to resize the window.

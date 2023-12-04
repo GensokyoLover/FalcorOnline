@@ -219,6 +219,7 @@ namespace Falcor
         }
         else
         {
+            printf("%s\n", path.string().c_str());
             scene = importer.ReadFile(path.string().c_str(), flags);
         }
 

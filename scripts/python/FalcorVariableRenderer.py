@@ -37,7 +37,7 @@ class FalcorVariableRenderer:
         self.height = 1080
         self.resolution = falcor.uint2(1920,1080)
         self.startPosition = falcor.uint2(0,0)
-        self.renderer = falcor.Testbed(width=self.width, height=self.height, position = self.startPosition,ow =self.resolution ,create_window=False, device=self.device)
+        self.renderer = falcor.Testbed(width=self.width, height=self.height, position = self.startPosition,ow =self.resolution ,create_window=True, device=self.device)
         self.renderer.setSpp(400)
         self.scene = None
         self.integrator = None

@@ -60,6 +60,7 @@ namespace Mogwai
         {
             Gui::Window w(pGui, "##FPS", { 0, 0 }, { 10, 25 }, Gui::WindowFlags::AllowMove | Gui::WindowFlags::AutoResize | Gui::WindowFlags::SetFocus);
             std::string msg = pRenderer->getFrameRate().getMsg(pRenderer->isVsyncEnabled());
+            
             w.text(msg);
         }
 
